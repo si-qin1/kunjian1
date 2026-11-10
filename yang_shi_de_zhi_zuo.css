@@ -1,0 +1,33 @@
+<!-- ============ 登录页（玻璃拟态 · 深海主题） ============ -->
+<div id="login-page" class="fixed inset-0 z-[100] flex justify-center overflow-x-hidden overflow-y-auto px-4 py-3"
+     style="background:linear-gradient(140deg,#02182b 0%,#0b4f6c 45%,#0d9488 100%);-webkit-overflow-scrolling:touch">
+  <div class="lg-float1 absolute -top-28 -left-24 w-[26rem] h-[26rem] rounded-full pointer-events-none" style="background:radial-gradient(circle,rgba(45,212,191,.32) 0%,transparent 68%)"></div>
+  <div class="lg-float2 absolute -bottom-36 -right-24 w-[30rem] h-[30rem] rounded-full pointer-events-none" style="background:radial-gradient(circle,rgba(56,189,248,.28) 0%,transparent 68%)"></div>
+  <div class="absolute inset-0 pointer-events-none overflow-hidden">
+    <div class="lg-bubble" style="left:8%;width:34px;height:34px;animation-duration:13s;animation-delay:0s"></div>
+    <div class="lg-bubble" style="left:22%;width:14px;height:14px;animation-duration:9s;animation-delay:2.5s"></div>
+    <div class="lg-bubble" style="left:41%;width:22px;height:22px;animation-duration:16s;animation-delay:5s"></div>
+  </div>
+  <div class="absolute bottom-0 left-0 w-[200%] pointer-events-none opacity-30">
+    <svg class="lg-wave" width="100%" height="120" viewBox="0 0 1200 120" preserveAspectRatio="none">
+      <path d="M0,60 C150,110 350,10 600,60 C850,110 1050,10 1200,60 L1200,120 L0,120 Z" fill="rgba(255,255,255,.14)"/>
+      <path d="M0,85 C200,35 400,120 600,80 C800,40 1000,120 1200,75 L1200,120 L0,120 Z" fill="rgba(255,255,255,.10)"/>
+    </svg>
+  </div>
+
+  <div class="w-full max-w-sm relative z-10 my-auto py-1">
+    <div class="text-center mb-4">
+      <div class="lg-logo select-none" style="background:transparent;border:none;animation:glowPulse 4.5s ease-in-out infinite;border-radius:50%;overflow:visible">
+        <svg width="96" height="96" viewBox="0 0 512 512" fill="none">
+          <defs>
+            <linearGradient id="lgBody" x1="0.05" y1="0.5" x2="0.95" y2="0.5">
+              <stop offset="0" stop-color="#5eead4"/><stop offset="0.45" stop-color="#2dd4bf"/>
+              <stop offset="0.78" stop-color="#38bdf8"/><stop offset="1" stop-color="#a5b4fc"/>
+            </linearGradient>
+          </defs>
+          <circle cx="256" cy="256" r="188" fill="none" stroke="#99f6e4" stroke-opacity="0.16" stroke-width="3"/>
+          <g transform="rotate(-9 256 256)">
+            <path d="M130 262 C170 206 252 184 318 200 C358 210 388 238 400 262 C388 286 358 314 318 324 C252 340 170 318 130 262 Z" fill="url(#lgBody)"/>
+            <circle cx="372" cy="248" r="17" fill="#04121E"/>
+            <circle cx="367" cy="243" r="6" fill="#ecfeff" opacity="0.95"/>
+          </g>
