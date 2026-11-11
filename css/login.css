@@ -1,0 +1,54 @@
+/* 鲲鉴智策 · 登录页样式：深海渐变、光斑动效、玻璃拟态卡片 */
+
+@keyframes floatSlow { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(24px,-30px) scale(1.08)} }
+@keyframes floatSlow2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-30px,22px) scale(1.05)} }
+@keyframes waveDrift { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+@keyframes glowPulse { 0%,100%{box-shadow:0 0 24px rgba(45,212,191,.45),0 8px 32px rgba(2,24,43,.5)} 50%{box-shadow:0 0 44px rgba(45,212,191,.75),0 8px 32px rgba(2,24,43,.5)} }
+.lg-float1{animation:floatSlow 9s ease-in-out infinite}
+.lg-float2{animation:floatSlow2 11s ease-in-out infinite}
+.lg-wave{animation:waveDrift 16s linear infinite}
+.lg-glow{animation:glowPulse 4s ease-in-out infinite}
+.lg-input{width:100%;border-radius:0.75rem;padding:0.7rem 0.9rem;font-size:16px;margin-top:0.3rem;
+  background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.22);color:#fff;outline:none;transition:all .2s}
+.lg-input::placeholder{color:rgba(255,255,255,.38)}
+.lg-input:focus{border-color:rgba(94,234,212,.9);box-shadow:0 0 0 3px rgba(45,212,191,.22);background:rgba(255,255,255,.13)}
+.lg-btn{width:100%;padding:0.78rem;border-radius:0.9rem;font-weight:600;font-size:0.95rem;color:#fff;position:relative;overflow:hidden;
+  background:linear-gradient(90deg,#14b8a6,#0ea5e9 62%,#6366f1);box-shadow:0 10px 26px rgba(13,148,136,.45);transition:all .2s;letter-spacing:0.35em}
+.lg-btn::after{content:'';position:absolute;top:0;bottom:0;width:44%;left:-60%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.35),transparent);animation:sheen 3.2s ease-in-out infinite}
+.lg-btn:active{transform:scale(.97)}
+@keyframes bubbleUp { 0%{transform:translateY(0) scale(1);opacity:.18} 85%{opacity:.32} 100%{transform:translateY(-110vh) scale(1.35);opacity:0} }
+.lg-bubble{position:absolute;border-radius:9999px;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.55),rgba(255,255,255,.08));
+  animation:bubbleUp linear infinite;pointer-events:none;bottom:-90px}
+.lg-logo{position:relative;width:5.8rem;height:5.8rem;margin:0 auto 0.45rem;
+  display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 10px 30px rgba(13,148,136,.5))}
+.lg-brand{background:linear-gradient(90deg,#ecfeff,#99f6e4 45%,#7dd3fc);-webkit-background-clip:text;background-clip:text;
+  color:transparent;filter:drop-shadow(0 3px 20px rgba(45,212,191,.4))}
+.lg-chip{font-size:11px;letter-spacing:.08em;color:#ccfbf1;background:rgba(255,255,255,.09);
+  border:1px solid rgba(153,246,228,.3);border-radius:9999px;padding:.3rem .75rem;backdrop-filter:blur(6px)}
+@keyframes cardUp{from{opacity:0;transform:translateY(24px) scale(.97)}to{opacity:1;transform:none}}
+.lg-card{animation:cardUp .65s .12s cubic-bezier(.22,.9,.3,1) both}
+.lg-demo{display:inline-flex;align-items:center;gap:.35rem;font-size:11px;color:#99f6e4;cursor:pointer;
+  border:1px dashed rgba(153,246,228,.4);border-radius:9999px;padding:.15rem .6rem;transition:all .2s}
+.lg-demo:hover{background:rgba(153,246,228,.12)}
+@media (max-height: 730px) {
+  .lg-logo{width:4.5rem;height:4.5rem;margin-bottom:.15rem;filter:drop-shadow(0 6px 18px rgba(13,148,136,.45))}
+  .lg-logo svg{width:74px;height:74px}
+  .lg-brand{font-size:1.65rem !important}
+  .lg-chips{display:none !important}
+  .lg-card{padding:.9rem !important}
+  .lg-card h2{margin-bottom:.45rem !important;font-size:1.02rem}
+  .lg-card .space-y-3 > :not([hidden]) ~ :not([hidden]){margin-top:.55rem !important}
+  .lg-input{padding:.5rem .85rem}
+  .lg-btn{padding:.58rem}
+  .lg-card .border-t{margin-top:.6rem !important;padding-top:.6rem !important}
+}
+@keyframes sheen { 0%{background-position:120% 0} 100%{background-position:-120% 0} }
+.lg-input-ico{position:absolute;left:.85rem;top:50%;transform:translateY(-50%);font-size:.85rem;opacity:.5}
+.lg-input-wrap{position:relative;margin-top:.3rem}
+.lg-input-wrap .lg-input{padding-left:2.4rem}
+.lg-card{position:relative;overflow:hidden}
+.lg-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3.5px;
+  background:linear-gradient(90deg,#2dd4bf,#38bdf8,#818cf8);border-radius:9999px}
+.lg-divider{height:1px;margin-top:1rem;padding-top:1rem;border-top:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent)}

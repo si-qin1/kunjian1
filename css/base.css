@@ -1,0 +1,44 @@
+/* 鲲鉴智策 · 基础样式：排版、表格、按钮、表单、卡片 */
+
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+         background: radial-gradient(1100px 520px at 90% -6%, rgba(56,189,248,.11), transparent 62%),
+                     radial-gradient(920px 500px at -10% 14%, rgba(45,212,191,.11), transparent 60%),
+                     radial-gradient(700px 420px at 50% 108%, rgba(129,140,248,.07), transparent 60%),
+                     linear-gradient(165deg, #f2fbfc 0%, #f8fafc 40%, #eef4ff 100%) !important;
+         background-attachment: fixed; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: linear-gradient(180deg,#5eead4,#38bdf8); border-radius: 4px; }
+  input, select { outline: none; }
+  .fade-in { animation: fadeIn .25s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px);} to {opacity:1; transform:none;} }
+  @keyframes pageIn { from { opacity: 0; transform: translateY(14px);} to { opacity: 1; transform: none;} }
+  .page-enter { animation: pageIn .32s cubic-bezier(.22,.9,.3,1); }
+  @media print { .no-print { display:none !important; } }
+
+  /* ===== 主界面美化 ===== */
+  #app-header { background: rgba(255,255,255,.86) !important; backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid rgba(13,148,136,.14) !important; }
+  header nav { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; max-width: 100%; }
+  header nav::-webkit-scrollbar { display: none; }
+  main .bg-white { border-radius: 1.2rem !important;
+                   box-shadow: 0 3px 18px rgba(13,148,136,.075), 0 1px 3px rgba(2,24,43,.05) !important;
+                   border: 1px solid rgba(13,148,136,.08); transition: box-shadow .25s, transform .25s; }
+  main .bg-white:hover { box-shadow: 0 10px 34px rgba(13,148,136,.14), 0 2px 6px rgba(2,24,43,.05) !important; }
+  .stat-card:hover { transform: translateY(-2px); }
+  .stat-val { font-variant-numeric: tabular-nums; }
+  thead { background: linear-gradient(90deg, #f0fdfa, #f0f7ff) !important; }
+  thead th { letter-spacing: .04em; }
+  tbody tr { transition: background .15s; }
+  tbody tr:hover { background: #f0fdfa !important; }
+  #tab-records, #tab-reconcile, #tab-customers, #tab-data, #tab-forecast, #tab-report { border-radius: .6rem; transition: all .2s; }
+  .stat-card { position: relative; overflow: hidden; }
+  .stat-card::after { content: ''; position: absolute; right: -18px; top: -18px; width: 84px; height: 84px;
+                      border-radius: 9999px; opacity: .1; }
+  .stat-c1::after { background: #0f766e; } .stat-c2::after { background: #0d9488; }
+  .stat-c3::after { background: #0ea5e9; } .stat-c4::after { background: #10b981; }
+  .stat-badge { width: 2.4rem; height: 2.4rem; border-radius: .85rem; display: flex; align-items: center;
+                justify-content: center; font-size: 1.15rem; color: #fff; flex-shrink: 0; }
+  @keyframes riseNum { from { opacity:0; transform: translateY(10px);} to {opacity:1; transform:none;} }
+  .stat-val { animation: riseNum .5s ease both; }
+  button { transition: transform .12s ease, box-shadow .2s ease; }
+  button:active { transform: scale(.97); }
