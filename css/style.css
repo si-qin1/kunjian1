@@ -1,0 +1,122 @@
+/* ==========================================================================
+   鲲鉴智策 · 全局样式
+   --------------------------------------------------------------------------
+   这里只放三类东西：一是浏览器差异抹平（字体栈、安全区、点击高亮），
+   二是登录页的海洋主题与动效，三是几个通用组件（卡片、输入框、徽标）。
+   布局本身全部交给 Tailwind 的原子类，避免自己写一堆重复的盒模型代码。
+
+   说明：唐风/宋体那套衬线字体没有引，中文界面还是系统字体最稳；
+   动效统一用 transform + opacity，交给 GPU 合成，低端安卓机上不卡。
+   ========================================================================== */
+
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+         background: radial-gradient(1100px 520px at 90% -6%, rgba(56,189,248,.11), transparent 62%),
+                     radial-gradient(920px 500px at -10% 14%, rgba(45,212,191,.11), transparent 60%),
+                     radial-gradient(700px 420px at 50% 108%, rgba(129,140,248,.07), transparent 60%),
+                     linear-gradient(165deg, #f2fbfc 0%, #f8fafc 40%, #eef4ff 100%) !important;
+         background-attachment: fixed; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: linear-gradient(180deg,#5eead4,#38bdf8); border-radius: 4px; }
+  input, select { outline: none; }
+  .fade-in { animation: fadeIn .25s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px);} to {opacity:1; transform:none;} }
+  @keyframes pageIn { from { opacity: 0; transform: translateY(14px);} to { opacity: 1; transform: none;} }
+  .page-enter { animation: pageIn .32s cubic-bezier(.22,.9,.3,1); }
+  @media print { .no-print { display:none !important; } }
+
+  /* ===== 主界面美化 ===== */
+  #app-header { background: rgba(255,255,255,.86) !important; backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px); border-bottom: 1px solid rgba(13,148,136,.14) !important; }
+  header nav { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; max-width: 100%; }
+  header nav::-webkit-scrollbar { display: none; }
+  main .bg-white { border-radius: 1.2rem !important;
+                   box-shadow: 0 3px 18px rgba(13,148,136,.075), 0 1px 3px rgba(2,24,43,.05) !important;
+                   border: 1px solid rgba(13,148,136,.08); transition: box-shadow .25s, transform .25s; }
+  main .bg-white:hover { box-shadow: 0 10px 34px rgba(13,148,136,.14), 0 2px 6px rgba(2,24,43,.05) !important; }
+  .stat-card:hover { transform: translateY(-2px); }
+  .stat-val { font-variant-numeric: tabular-nums; }
+  thead { background: linear-gradient(90deg, #f0fdfa, #f0f7ff) !important; }
+  thead th { letter-spacing: .04em; }
+  tbody tr { transition: background .15s; }
+  tbody tr:hover { background: #f0fdfa !important; }
+  #tab-records, #tab-reconcile, #tab-customers, #tab-data, #tab-forecast, #tab-report { border-radius: .6rem; transition: all .2s; }
+  .stat-card { position: relative; overflow: hidden; }
+  .stat-card::after { content: ''; position: absolute; right: -18px; top: -18px; width: 84px; height: 84px;
+                      border-radius: 9999px; opacity: .1; }
+  .stat-c1::after { background: #0f766e; } .stat-c2::after { background: #0d9488; }
+  .stat-c3::after { background: #0ea5e9; } .stat-c4::after { background: #10b981; }
+  .stat-badge { width: 2.4rem; height: 2.4rem; border-radius: .85rem; display: flex; align-items: center;
+                justify-content: center; font-size: 1.15rem; color: #fff; flex-shrink: 0; }
+  @keyframes riseNum { from { opacity:0; transform: translateY(10px);} to {opacity:1; transform:none;} }
+  .stat-val { animation: riseNum .5s ease both; }
+  button { transition: transform .12s ease, box-shadow .2s ease; }
+  button:active { transform: scale(.97); }
+
+  html, body { -webkit-tap-highlight-color: transparent; overscroll-behavior: none; }
+  body { padding-top: env(safe-area-inset-top); }
+  #app-header { padding-top: env(safe-area-inset-top); }
+  input, select, textarea { font-size: 16px; }
+
+@keyframes floatSlow { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(24px,-30px) scale(1.08)} }
+@keyframes floatSlow2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-30px,22px) scale(1.05)} }
+@keyframes waveDrift { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+@keyframes glowPulse { 0%,100%{box-shadow:0 0 24px rgba(56,189,248,.35),0 8px 32px rgba(2,132,199,.18)} 50%{box-shadow:0 0 46px rgba(56,189,248,.65),0 8px 32px rgba(2,132,199,.22)} }
+.lg-float1{animation:floatSlow 9s ease-in-out infinite}
+.lg-float2{animation:floatSlow2 11s ease-in-out infinite}
+.lg-wave{animation:waveDrift 16s linear infinite}
+.lg-glow{animation:glowPulse 4s ease-in-out infinite}
+.lg-input{width:100%;border-radius:0.75rem;padding:0.7rem 0.9rem;font-size:16px;margin-top:0.3rem;
+  background:rgba(255,255,255,.68);border:1px solid rgba(14,165,233,.28);color:#0f172a;outline:none;transition:all .2s}
+.lg-input::placeholder{color:rgba(15,23,42,.35)}
+.lg-input:focus{border-color:rgba(14,165,233,.95);box-shadow:0 0 0 3px rgba(125,211,252,.4);background:rgba(255,255,255,.92)}
+/* 深海生物层：鱼 / 大龙虾 / 帝王蟹随机游弋。
+   本体 SVG 一律「头朝右、尾朝左」绘制，运行时按速度方向 scaleX(±1) 翻转，
+   因此无论向左还是向右，永远是头在前、尾在后，绝不倒游。 */
+#lg-sealife{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.lg-sea{position:absolute;left:0;top:0;will-change:transform;pointer-events:none;
+  transform-origin:50% 50%;filter:drop-shadow(0 8px 18px rgba(2,132,199,.22))}
+.lg-sea svg{display:block;overflow:visible}
+/* 蟹螯 / 龙虾触须的轻微摆动 */
+@keyframes clawWave{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(6deg)}}
+.lg-sea .claw-l{animation:clawWave 2.6s ease-in-out infinite;transform-origin:70% 30%}
+.lg-sea .claw-r{animation:clawWave 2.6s ease-in-out infinite reverse;transform-origin:30% 30%}
+.lg-btn{width:100%;padding:0.78rem;border-radius:0.9rem;font-weight:600;font-size:0.95rem;color:#fff;position:relative;overflow:hidden;
+  background:linear-gradient(90deg,#38bdf8,#0ea5e9 52%,#6366f1);box-shadow:0 10px 26px rgba(14,165,233,.42);transition:all .2s;letter-spacing:0.35em}
+.lg-btn::after{content:'';position:absolute;top:0;bottom:0;width:44%;left:-60%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.45),transparent);animation:sheen 3.2s ease-in-out infinite}
+.lg-btn:active{transform:scale(.97)}
+@keyframes bubbleUp { 0%{transform:translateY(0) scale(1);opacity:.3} 85%{opacity:.42} 100%{transform:translateY(-110vh) scale(1.35);opacity:0} }
+.lg-bubble{position:absolute;border-radius:9999px;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,.9),rgba(125,211,252,.22));
+  box-shadow:inset 0 0 6px rgba(255,255,255,.65),0 1px 4px rgba(14,165,233,.12);animation:bubbleUp linear infinite;pointer-events:none;bottom:-90px}
+.lg-logo{position:relative;width:5.8rem;height:5.8rem;margin:0 auto 0.45rem;
+  display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 10px 30px rgba(14,165,233,.4))}
+.lg-brand{background:linear-gradient(90deg,#0369a1,#0ea5e9 38%,#38bdf8 70%,#818cf8);-webkit-background-clip:text;background-clip:text;
+  color:transparent;filter:drop-shadow(0 3px 18px rgba(14,165,233,.35))}
+.lg-chip{font-size:11px;letter-spacing:.08em;color:#075985;background:rgba(255,255,255,.62);
+  border:1px solid rgba(56,189,248,.45);border-radius:9999px;padding:.3rem .75rem;backdrop-filter:blur(6px);box-shadow:0 1px 8px rgba(14,165,233,.12)}
+@keyframes cardUp{from{opacity:0;transform:translateY(24px) scale(.97)}to{opacity:1;transform:none}}
+.lg-card{animation:cardUp .65s .12s cubic-bezier(.22,.9,.3,1) both}
+.lg-demo{display:inline-flex;align-items:center;gap:.35rem;font-size:11px;color:#0284c7;cursor:pointer;
+  border:1px dashed rgba(2,132,199,.45);border-radius:9999px;padding:.15rem .6rem;transition:all .2s}
+.lg-demo:hover{background:rgba(186,230,253,.5)}
+@media (max-height: 730px) {
+  .lg-logo{width:4.5rem;height:4.5rem;margin-bottom:.15rem;filter:drop-shadow(0 6px 18px rgba(14,165,233,.4))}
+  .lg-logo svg{width:74px;height:74px}
+  .lg-brand{font-size:1.65rem !important}
+  .lg-chips{display:none !important}
+  .lg-card{padding:.9rem !important}
+  .lg-card h2{margin-bottom:.45rem !important;font-size:1.02rem}
+  .lg-card .space-y-3 > :not([hidden]) ~ :not([hidden]){margin-top:.55rem !important}
+  .lg-input{padding:.5rem .85rem}
+  .lg-btn{padding:.58rem}
+  .lg-card .border-t{margin-top:.6rem !important;padding-top:.6rem !important}
+}
+@keyframes sheen { 0%{background-position:120% 0} 100%{background-position:-120% 0} }
+.lg-input-ico{position:absolute;left:.85rem;top:50%;transform:translateY(-50%);font-size:.85rem;opacity:.45}
+.lg-input-wrap{position:relative;margin-top:.3rem}
+.lg-input-wrap .lg-input{padding-left:2.4rem}
+.lg-card{position:relative;overflow:hidden}
+.lg-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3.5px;
+  background:linear-gradient(90deg,#38bdf8,#818cf8,#2dd4bf);border-radius:9999px}
+.lg-divider{height:1px;margin-top:1rem;padding-top:1rem;border-top:0;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent)}
