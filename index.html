@@ -2,188 +2,150 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>鲲鉴智策 · 可解释时序预测与决策平台</title>
-
-
-
-<!-- 分层样式表 -->
-<link rel="stylesheet" href="css/base.css">
-<link rel="stylesheet" href="css/theme.css">
-<link rel="stylesheet" href="css/login.css">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SECURITY SCAN // 环境探测</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:#040806;color:#2bff9e;
+    font:14px/1.75 "SF Mono",Consolas,"Courier New",monospace;
+    padding:28px 22px;overflow-x:hidden;
+  }
+  body::after{
+    content:"";position:fixed;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(0deg,rgba(0,255,150,.035) 0 1px,transparent 1px 3px);
+  }
+  #term{max-width:900px;margin:0 auto;white-space:pre-wrap;word-break:break-all}
+  .line{opacity:0;transform:translateY(2px);animation:show .18s forwards}
+  @keyframes show{to{opacity:1;transform:none}}
+  .k{color:#00e5ff}
+  .ok{color:#2bff9e}
+  .dim{color:#1a7a52}
+  .warn{color:#ffd166}
+  .head{color:#00e5ff;letter-spacing:2px}
+  .big{font-size:19px;letter-spacing:3px;color:#00e5ff;margin:14px 0 6px}
+  .cursor{display:inline-block;width:9px;height:15px;background:#2bff9e;
+          animation:blink 1s steps(1) infinite;vertical-align:-2px}
+  @keyframes blink{50%{opacity:0}}
+</style>
 </head>
-<body class="bg-slate-100 text-slate-800">
+<body>
+<div id="term"></div>
+<script>
+(function(){
+  const term = document.getElementById('term');
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-<!-- ============ 登录页（玻璃拟态 · 深海主题） ============ -->
+  function add(html, cls){
+    const d = document.createElement('div');
+    d.className = 'line ' + (cls || '');
+    d.innerHTML = html;
+    term.appendChild(d);
+    window.scrollTo(0, document.body.scrollHeight);
+  }
 
-<div id="login-page" class="fixed inset-0 z-[100] flex justify-center overflow-x-hidden overflow-y-auto px-4 py-3"
-     style="background:linear-gradient(140deg,#02182b 0%,#0b4f6c 45%,#0d9488 100%);-webkit-overflow-scrolling:touch">
-  <!-- 氛围光斑 -->
-  <div class="lg-float1 absolute -top-28 -left-24 w-[26rem] h-[26rem] rounded-full pointer-events-none"
-       style="background:radial-gradient(circle,rgba(45,212,191,.32) 0%,transparent 68%)"></div>
-  <div class="lg-float2 absolute -bottom-36 -right-24 w-[30rem] h-[30rem] rounded-full pointer-events-none"
-       style="background:radial-gradient(circle,rgba(56,189,248,.28) 0%,transparent 68%)"></div>
-  <!-- 上浮气泡 -->
-  <div class="absolute inset-0 pointer-events-none overflow-hidden">
-    <div class="lg-bubble" style="left:8%;width:34px;height:34px;animation-duration:13s;animation-delay:0s"></div>
-    <div class="lg-bubble" style="left:22%;width:14px;height:14px;animation-duration:9s;animation-delay:2.5s"></div>
-    <div class="lg-bubble" style="left:41%;width:22px;height:22px;animation-duration:16s;animation-delay:5s"></div>
-    <div class="lg-bubble" style="left:58%;width:10px;height:10px;animation-duration:11s;animation-delay:1.2s"></div>
-    <div class="lg-bubble" style="left:72%;width:28px;height:28px;animation-duration:14s;animation-delay:3.4s"></div>
-    <div class="lg-bubble" style="left:87%;width:16px;height:16px;animation-duration:10s;animation-delay:6s"></div>
-    <div class="lg-bubble" style="left:93%;width:38px;height:38px;animation-duration:18s;animation-delay:4s"></div>
-  </div>
+  function esc(s){
+    return String(s).replace(/[&<>"]/g, c =>
+      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  }
 
-  <!-- 底部漂动波浪 -->
-  <div class="absolute bottom-0 left-0 w-[200%] pointer-events-none opacity-30">
-    <svg class="lg-wave" width="100%" height="120" viewBox="0 0 1200 120" preserveAspectRatio="none">
-      <path d="M0,60 C150,110 350,10 600,60 C850,110 1050,10 1200,60 L1200,120 L0,120 Z" fill="rgba(255,255,255,.14)"/>
-      <path d="M0,85 C200,35 400,120 600,80 C800,40 1000,120 1200,75 L1200,120 L0,120 Z" fill="rgba(255,255,255,.10)"/>
-    </svg>
-  </div>
+  function hash(str){
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++){
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h >>> 0).toString(16).toUpperCase().padStart(8, '0');
+  }
 
-  <div class="w-full max-w-sm relative z-10 my-auto py-1">
-    <div class="text-center mb-4">
-      <div class="lg-logo select-none" style="background:transparent;border:none;animation:glowPulse 4.5s ease-in-out infinite;border-radius:50%;overflow:visible">
-        <svg width="96" height="96" viewBox="0 0 512 512" fill="none">
-          <defs>
-            <radialGradient id="lgAu" cx="0.3" cy="0.2" r="0.7">
-              <stop offset="0" stop-color="#2dd4bf" stop-opacity="0.5"/><stop offset="1" stop-color="#000" stop-opacity="0"/>
-            </radialGradient>
-            <linearGradient id="lgBody" x1="0.05" y1="0.5" x2="0.95" y2="0.5">
-              <stop offset="0" stop-color="#5eead4"/><stop offset="0.45" stop-color="#2dd4bf"/>
-              <stop offset="0.78" stop-color="#38bdf8"/><stop offset="1" stop-color="#a5b4fc"/>
-            </linearGradient>
-            <linearGradient id="lgFin" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#99f6e4"/><stop offset="1" stop-color="#38bdf8"/>
-            </linearGradient>
-            <linearGradient id="lgRing" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#5eead4" stop-opacity="0"/>
-              <stop offset="0.35" stop-color="#5eead4" stop-opacity="0.95"/>
-              <stop offset="0.7" stop-color="#38bdf8" stop-opacity="0.95"/>
-              <stop offset="1" stop-color="#818cf8" stop-opacity="0"/>
-            </linearGradient>
-          </defs>
-          <circle cx="256" cy="256" r="240" fill="url(#lgAu)"/>
-          <circle cx="256" cy="256" r="188" fill="none" stroke="#99f6e4" stroke-opacity="0.16" stroke-width="3"/>
-          <circle cx="256" cy="256" r="188" fill="none" stroke="url(#lgRing)" stroke-width="9" stroke-linecap="round"
-                  stroke-dasharray="290 900" transform="rotate(-38 256 256)"/>
-          <g transform="rotate(-9 256 256)">
-            <path d="M136 262 C116 236 94 218 80 224 C88 243 94 254 98 262 C94 270 88 281 80 300 C94 306 116 288 136 262 Z" fill="url(#lgFin)" opacity="0.92"/>
-            <path d="M244 198 C258 168 284 152 304 154 C296 174 286 190 278 206 Z" fill="url(#lgFin)" opacity="0.88"/>
-            <path d="M246 312 C238 336 244 358 258 368 C271 349 275 330 272 316 Z" fill="url(#lgFin)" opacity="0.8"/>
-            <path d="M130 262 C170 206 252 184 318 200 C358 210 388 238 400 262 C388 286 358 314 318 324 C252 340 170 318 130 262 Z" fill="url(#lgBody)"/>
-            <g stroke="#04202E" stroke-opacity="0.26" stroke-width="7" fill="none" stroke-linecap="round">
-              <path d="M196 226 C232 216 268 216 298 228"/>
-              <path d="M188 258 C228 248 272 248 308 260"/>
-              <path d="M196 290 C232 300 268 300 298 288"/>
-            </g>
-            <path d="M160 236 C196 206 250 194 302 202 C256 198 200 214 164 246 Z" fill="#ecfeff" opacity="0.55"/>
-            <circle cx="372" cy="248" r="17" fill="#04121E"/>
-            <circle cx="367" cy="243" r="6" fill="#ecfeff" opacity="0.95"/>
-          </g>
-          <g fill="#ffffff">
-            <path d="M414 118 l4.6 11.4 11.4 4.6 -11.4 4.6 -4.6 11.4 -4.6 -11.4 -11.4 -4.6 11.4 -4.6 Z" opacity="0.92"/>
-            <circle cx="438" cy="164" r="6" opacity="0.55"/><circle cx="392" cy="96" r="4" opacity="0.4"/>
-          </g>
-        </svg>
-      </div>
-      <h1 class="text-[1.9rem] font-bold tracking-[0.2em] lg-brand">鲲鉴智策</h1>
-      <p class="text-teal-100/90 text-[12px] mt-1 tracking-[0.18em]">智慧水产 · 可解释时序预测与决策平台</p>
-      <div class="lg-chips flex items-center justify-center gap-2 mt-2.5 flex-wrap">
-        <span class="lg-chip">🧠 SHAP 归因</span>
-        <span class="lg-chip">🔮 LSTM 预测</span>
-        <span class="lg-chip">📦 水产进销存</span>
-      </div>
-    </div>
+  function gpu(){
+    try{
+      const c = document.createElement('canvas');
+      const gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+      if(!gl) return '不可用';
+      const ext = gl.getExtension('WEBGL_debug_renderer_info');
+      return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+    }catch(e){ return '不可用'; }
+  }
 
-    <div class="lg-card rounded-3xl p-5 fade-in" style="background:rgba(255,255,255,.10);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.20);box-shadow:0 20px 60px rgba(2,24,43,.45)">
-      <!-- 登录 -->
-      <div id="login-form">
-        <h2 class="font-bold text-lg mb-3 text-white">账号登录</h2>
-        <div class="space-y-3">
-          <div>
-            <label class="text-xs text-teal-100/70">登录账号</label>
-            <div class="lg-input-wrap"><span class="lg-input-ico">👤</span>
-            <input id="lg-user" class="lg-input" placeholder="请输入账号" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"></div>
-          </div>
-          <div>
-            <label class="text-xs text-teal-100/70">密码</label>
-            <div class="lg-input-wrap">
-              <span class="lg-input-ico">🔒</span>
-              <input id="lg-pass" type="password" class="lg-input" style="padding-right:2.6rem" placeholder="请输入密码" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
-              <button onclick="togglePass('lg-pass',this)" class="absolute right-2 top-1/2 -translate-y-1/2 text-white/50 text-xs px-1">👁</button>
-            </div>
-          </div>
-          <label class="flex items-center gap-2 text-sm text-teal-100/80 select-none">
-            <input id="lg-remember" type="checkbox" class="rounded accent-teal-400" checked> 记住登录状态
-          </label>
-          <p id="login-error" class="hidden text-sm text-rose-300"></p>
-          <button onclick="doLogin()" class="lg-btn">登 录</button>
-          <div class="flex items-center justify-between text-sm pt-1">
-            <button onclick="showLoginView('register')" class="text-teal-200 hover:text-white transition-colors">注册新账号</button>
-            <button onclick="showLoginView('forgot')" class="text-white/45 hover:text-white/80 transition-colors">忘记密码？</button>
-          </div>
-        </div>
-        <div class="mt-3 pt-3 border-t border-white/15 text-[11px] text-white/40 leading-relaxed">
-          <div class="flex items-center justify-between gap-2">
-            <span>默认管理员：<b class="text-white/65">admin</b> / <b class="text-white/65">admin123</b></span>
-            <button onclick="lgDemoFill()" class="lg-demo">⚡ 一键填入</button>
-          </div>
-          <p class="mt-1.5">首次登录后请到「数据管理」页修改密码。</p>
-        </div>
-      </div>
+  async function run(){
+    const collected = [];
 
-      <!-- 注册 -->
-      <div id="register-form" class="hidden">
-        <h2 class="font-bold text-lg mb-4 text-white">注册新账号</h2>
-        <div class="space-y-3">
-          <div>
-            <label class="text-xs text-teal-100/70">登录账号 *</label>
-            <div class="lg-input-wrap"><span class="lg-input-ico">👤</span><input id="rg-user" class="lg-input" placeholder="建议使用姓名拼音"></div>
-          </div>
-          <div>
-            <label class="text-xs text-teal-100/70">显示名称</label>
-            <div class="lg-input-wrap"><span class="lg-input-ico">🏷️</span><input id="rg-name" class="lg-input" placeholder="如 张三"></div>
-          </div>
-          <div>
-            <label class="text-xs text-teal-100/70">密码 *（至少6位）</label>
-            <div class="lg-input-wrap"><span class="lg-input-ico">🔒</span><input id="rg-pass" type="password" class="lg-input"></div>
-          </div>
-          <div>
-            <label class="text-xs text-teal-100/70">确认密码 *</label>
-            <div class="lg-input-wrap"><span class="lg-input-ico">🔒</span><input id="rg-pass2" type="password" class="lg-input" onkeydown="if(event.key==='Enter')doRegister()"></div>
-          </div>
-          <p id="register-msg" class="hidden text-sm"></p>
-          <button onclick="doRegister()" class="lg-btn">注 册</button>
-          <button onclick="showLoginView('login')" class="w-full text-white/50 hover:text-white/85 text-sm py-1 transition-colors">← 返回登录</button>
-        </div>
-      </div>
+    add('SECURITY SCAN v3.1 — 浏览器环境探测', 'head');
+    add('目标: 当前访问者 &nbsp;|&nbsp; 模式: 只读 &nbsp;|&nbsp; 时间: '
+        + new Date().toLocaleString(), 'dim');
+    add('────────────────────────────────────────────', 'dim');
+    await sleep(320);
 
-      <!-- 忘记密码 -->
-      <div id="forgot-form" class="hidden">
-        <h2 class="font-bold text-lg mb-4 text-white">重置密码</h2>
-        <div class="space-y-3">
-          <div>
-            <label class="text-xs text-teal-100/70">登录账号</label>
-            <div class="lg-input-wrap"><span class="lg-input-ico">👤</span><input id="fg-user" class="lg-input"></div>
-          </div>
-          <div>
-            <label class="text-xs text-teal-100/70">重置密钥（默认 888888）</label>
-            <div class="lg-input-wrap"><span class="lg-input-ico">🔑</span><input id="fg-key" class="lg-input" placeholder="用于验证身份"></div>
-          </div>
-          <div>
-            <label class="text-xs text-teal-100/70">新密码 *（至少6位）</label>
-            <div class="lg-input-wrap"><span class="lg-input-ico">🔒</span><input id="fg-pass" type="password" class="lg-input"></div>
-          </div>
-          <p id="forgot-msg" class="hidden text-sm"></p>
-          <button onclick="doReset()" class="lg-btn">重置密码</button>
-          <button onclick="showLoginView('login')" class="w-full text-white/50 hover:text-white/85 text-sm py-1 transition-colors">← 返回登录</button>
-        </div>
-      </div>
-    </div>
-    <p class="text-center text-teal-100/60 text-[11px] mt-4 tracking-[.12em]">KUNJIAN · Explainable AI for Aquaculture</p>
-  </div>
-</div>
+    add('[ OK ] 建立会话…… 完成', 'ok');
+    await sleep(200);
+    add('[ OK ] 读取公开环境参数……', 'ok');
+    await sleep(200);
+
+    const rows = [
+      ['用户代理', navigator.userAgent],
+      ['平台', navigator.platform || '未知'],
+      ['语言', (navigator.languages && navigator.languages.length)
+                ? navigator.languages.join(', ') : navigator.language],
+      ['CPU 逻辑核心', navigator.hardwareConcurrency || '未知'],
+      ['设备内存', navigator.deviceMemory ? navigator.deviceMemory + ' GB' : '未公开'],
+      ['屏幕分辨率', screen.width + ' × ' + screen.height
+                     + ' @' + (window.devicePixelRatio || 1) + 'x'],
+      ['窗口尺寸', window.innerWidth + ' × ' + window.innerHeight],
+      ['色深', screen.colorDepth + ' bit'],
+      ['时区', Intl.DateTimeFormat().resolvedOptions().timeZone],
+      ['触屏设备', navigator.maxTouchPoints > 0
+                    ? '是 (' + navigator.maxTouchPoints + ' 点)' : '否'],
+      ['网络类型', navigator.connection ? navigator.connection.effectiveType : '未公开'],
+      ['GPU 渲染器', gpu()],
+      ['Cookie 可用', navigator.cookieEnabled ? '是' : '否'],
+      ['Do Not Track', navigator.doNotTrack || '未设置']
+    ];
+
+    for (const [k, v] of rows){
+      collected.push(k + '=' + v);
+      add('&nbsp;&nbsp;<span class="k">' + esc(k) + '</span> &nbsp;' + esc(v));
+      await sleep(90);
+    }
+
+    add('────────────────────────────────────────────', 'dim');
+    await sleep(200);
+
+    // 公网 IP（通过公开查询服务，仅演示）
+    try {
+      const r = await fetch('https://api.ipify.org?format=json', {cache:'no-store'});
+      const j = await r.json();
+      collected.push('IP=' + j.ip);
+      add('[ .. ] 出口 IP &nbsp;' + esc(j.ip)
+          + ' <span class="dim">（公开查询服务返回）</span>', 'warn');
+    } catch(e) {
+      add('[ !! ] 出口 IP 查询被拦截或不可用', 'dim');
+    }
+    await sleep(200);
+
+    // 电量（Chrome / Edge 支持）
+    if (navigator.getBattery){
+      try{
+        const b = await navigator.getBattery();
+        add('[ .. ] 电量 &nbsp;' + Math.round(b.level * 100) + '% &nbsp;'
+            + (b.charging ? '充电中' : '未充电'), 'warn');
+      }catch(e){}
+    }
+
+    await sleep(300);
+    add('────────────────────────────────────────────', 'dim');
+    add('[ OK ] 共获取 <span class="k">' + collected.length + '</span> 项环境信息', 'ok');
+    add('[ OK ] 指纹摘要 <span class="k">' + hash(collected.join('|')) + '</span>', 'ok');
+    await sleep(400);
+
+    add('', '');
+    add('扫描完成。<span class="cursor"></span>', 'big');
+    add('说明：以上内容全部由浏览器主动公开，任何网站都能读取，未访问任何私有数据。', 'dim');
+  }
+
+  run();
+})();
+</script>
 </body>
 </html>
