@@ -330,6 +330,626 @@ function trainFrontier() {
     })();
   }
 }
+ function trainLstm() {
+    const W = 7;
+    const lo = Math.min(...train), hi = Math.max(...train), span = (hi - lo) || 1;
+    const norm = v => (v - lo) / span;
+    const win = train.map(norm);
+    let samples = [];
+    for (let i = W; i < win.length; i++) samples.push([win.slice(i - W, i), win[i]]);
+    if (samples.length > 800) samples = samples.filter((_, i) => i % Math.ceil(samples.length / 800) === 0);
+    const ENS = [{ H: 10, ep: 600, lr: 0.025 }, { H: 12, ep: 600, lr: 0.02 }, { H: 8, ep: 600, lr: 0.03 }];
+    const nets = [], lossHist = [];
+    let ci = 0, ep = 0, cur = null;
+    (function trainLoop() {
+      if (ci >= ENS.length) {
+        prog.classList.add('hidden'); btn.disabled = false; btn.classList.remove('opacity-60');
+        // 与其它模型统一的分块滚动回测协议（每 horizon 天重置窗口，避免长递推误差累积）
+        const lstmBlockPredict = (w) => {
+          const seqs = nets.map(() => w.map(norm)), out = [];
+          for (let i = 0; i < horizon; i++) {
+            let ysum = 0;
+            nets.forEach((m, mi) => {
+              const yhat = lstmForward(m, seqs[mi].slice(-W)).y;
+              ysum += yhat; seqs[mi].push(Math.max(0, Math.min(1, yhat)));
+            });
+            out.push(Math.max(0, (ysum / nets.length) * span + lo));
+          }
+          return out;
+        };
+        const lp = blockBacktest({ predict: lstmBlockPredict }, all, train.length, h, horizon, W);
+        const futSeqs = nets.map(() => all.slice(-W).map(norm)), fut = [];
+        for (let i = 0; i < horizon; i++) {
+          let ysum = 0;
+          nets.forEach((m, mi) => {
+            const yhat = lstmForward(m, futSeqs[mi].slice(-W)).y;
+            ysum += yhat; futSeqs[mi].push(Math.max(0, Math.min(1, yhat)));
+          });
+          fut.push(Math.max(0, (ysum / nets.length) * span + lo));
+        }
+        const lstmModel = { name: 'LSTM 集成模型', cat: '深度时序 · 3 子网', preds: lp, fut, ...errMetrics(test, lp) };
+        lstmModel.p1 = w => {
+          const xs = w.slice(-W).map(norm);
+          let s = 0; for (const m of nets) s += lstmForward(m, xs).y;
+          return Math.max(0, s / nets.length * span + lo);
+        };
+        models.push(lstmModel);
+        const ensBounds = ENS.reduce((acc, c) => { acc.push((acc.length ? acc[acc.length - 1] : 0) + c.ep); return acc; }, []);
+        finishForecast(models, series, horizon, metric, { model: nets, lo, span, W, all, h, test, lossHist, epochs: totalEp, ensBounds, models });
+        return;
+      }
+      if (!cur) { cur = lstmCreate(ENS[ci].H, 314159 + ci * 7919); ep = 0; }
+      const cfg = ENS[ci];
+      const lr = cfg.lr * (1 - ep / cfg.ep * 0.85);
+      let lsum = 0;
+      for (const [x, y] of samples) lsum += lstmTrainStep(cur, x, y, lr);
+      ep++; doneEp++;
+      lossHist.push(lsum / samples.length);
+      setProg('LSTM 集成训练 ' + (ci + 1) + '/' + ENS.length + ' · epoch ' + ep + '/' + cfg.ep + ' · loss=' + (lsum / samples.length).toFixed(5));
+      if (ep < cfg.ep) { setTimeout(trainLoop, 0); return; }
+      nets.push(cur); cur = null; ci++;
+      setTimeout(trainLoop, 0);
+    })();
+  }
+}
+ function trainLstm() {
+    const W = 7;
+    const lo = Math.min(...train), hi = Math.max(...train), span = (hi - lo) || 1;
+    const norm = v => (v - lo) / span;
+    const win = train.map(norm);
+    let samples = [];
+    for (let i = W; i < win.length; i++) samples.push([win.slice(i - W, i), win[i]]);
+    if (samples.length > 800) samples = samples.filter((_, i) => i % Math.ceil(samples.length / 800) === 0);
+    const ENS = [{ H: 10, ep: 600, lr: 0.025 }, { H: 12, ep: 600, lr: 0.02 }, { H: 8, ep: 600, lr: 0.03 }];
+    const nets = [], lossHist = [];
+    let ci = 0, ep = 0, cur = null;
+    (function trainLoop() {
+      if (ci >= ENS.length) {
+        prog.classList.add('hidden'); btn.disabled = false; btn.classList.remove('opacity-60');
+        // 与其它模型统一的分块滚动回测协议（每 horizon 天重置窗口，避免长递推误差累积）
+        const lstmBlockPredict = (w) => {
+          const seqs = nets.map(() => w.map(norm)), out = [];
+          for (let i = 0; i < horizon; i++) {
+            let ysum = 0;
+            nets.forEach((m, mi) => {
+              const yhat = lstmForward(m, seqs[mi].slice(-W)).y;
+              ysum += yhat; seqs[mi].push(Math.max(0, Math.min(1, yhat)));
+            });
+            out.push(Math.max(0, (ysum / nets.length) * span + lo));
+          }
+          return out;
+        };
+        const lp = blockBacktest({ predict: lstmBlockPredict }, all, train.length, h, horizon, W);
+        const futSeqs = nets.map(() => all.slice(-W).map(norm)), fut = [];
+        for (let i = 0; i < horizon; i++) {
+          let ysum = 0;
+          nets.forEach((m, mi) => {
+            const yhat = lstmForward(m, futSeqs[mi].slice(-W)).y;
+            ysum += yhat; futSeqs[mi].push(Math.max(0, Math.min(1, yhat)));
+          });
+          fut.push(Math.max(0, (ysum / nets.length) * span + lo));
+        }
+        const lstmModel = { name: 'LSTM 集成模型', cat: '深度时序 · 3 子网', preds: lp, fut, ...errMetrics(test, lp) };
+        lstmModel.p1 = w => {
+          const xs = w.slice(-W).map(norm);
+          let s = 0; for (const m of nets) s += lstmForward(m, xs).y;
+          return Math.max(0, s / nets.length * span + lo);
+        };
+        models.push(lstmModel);
+        const ensBounds = ENS.reduce((acc, c) => { acc.push((acc.length ? acc[acc.length - 1] : 0) + c.ep); return acc; }, []);
+        finishForecast(models, series, horizon, metric, { model: nets, lo, span, W, all, h, test, lossHist, epochs: totalEp, ensBounds, models });
+        return;
+      }
+      if (!cur) { cur = lstmCreate(ENS[ci].H, 314159 + ci * 7919); ep = 0; }
+      const cfg = ENS[ci];
+      const lr = cfg.lr * (1 - ep / cfg.ep * 0.85);
+      let lsum = 0;
+      for (const [x, y] of samples) lsum += lstmTrainStep(cur, x, y, lr);
+      ep++; doneEp++;
+      lossHist.push(lsum / samples.length);
+      setProg('LSTM 集成训练 ' + (ci + 1) + '/' + ENS.length + ' · epoch ' + ep + '/' + cfg.ep + ' · loss=' + (lsum / samples.length).toFixed(5));
+      if (ep < cfg.ep) { setTimeout(trainLoop, 0); return; }
+      nets.push(cur); cur = null; ci++;
+      setTimeout(trainLoop, 0);
+    })();
+  }
+}
+ function trainLstm() {
+    const W = 7;
+    const lo = Math.min(...train), hi = Math.max(...train), span = (hi - lo) || 1;
+    const norm = v => (v - lo) / span;
+    const win = train.map(norm);
+    let samples = [];
+    for (let i = W; i < win.length; i++) samples.push([win.slice(i - W, i), win[i]]);
+    if (samples.length > 800) samples = samples.filter((_, i) => i % Math.ceil(samples.length / 800) === 0);
+    const ENS = [{ H: 10, ep: 600, lr: 0.025 }, { H: 12, ep: 600, lr: 0.02 }, { H: 8, ep: 600, lr: 0.03 }];
+    const nets = [], lossHist = [];
+    let ci = 0, ep = 0, cur = null;
+    (function trainLoop() {
+      if (ci >= ENS.length) {
+        prog.classList.add('hidden'); btn.disabled = false; btn.classList.remove('opacity-60');
+        // 与其它模型统一的分块滚动回测协议（每 horizon 天重置窗口，避免长递推误差累积）
+        const lstmBlockPredict = (w) => {
+          const seqs = nets.map(() => w.map(norm)), out = [];
+          for (let i = 0; i < horizon; i++) {
+            let ysum = 0;
+            nets.forEach((m, mi) => {
+              const yhat = lstmForward(m, seqs[mi].slice(-W)).y;
+              ysum += yhat; seqs[mi].push(Math.max(0, Math.min(1, yhat)));
+            });
+            out.push(Math.max(0, (ysum / nets.length) * span + lo));
+          }
+          return out;
+        };
+        const lp = blockBacktest({ predict: lstmBlockPredict }, all, train.length, h, horizon, W);
+        const futSeqs = nets.map(() => all.slice(-W).map(norm)), fut = [];
+        for (let i = 0; i < horizon; i++) {
+          let ysum = 0;
+          nets.forEach((m, mi) => {
+            const yhat = lstmForward(m, futSeqs[mi].slice(-W)).y;
+            ysum += yhat; futSeqs[mi].push(Math.max(0, Math.min(1, yhat)));
+          });
+          fut.push(Math.max(0, (ysum / nets.length) * span + lo));
+        }
+        const lstmModel = { name: 'LSTM 集成模型', cat: '深度时序 · 3 子网', preds: lp, fut, ...errMetrics(test, lp) };
+        lstmModel.p1 = w => {
+          const xs = w.slice(-W).map(norm);
+          let s = 0; for (const m of nets) s += lstmForward(m, xs).y;
+          return Math.max(0, s / nets.length * span + lo);
+        };
+        models.push(lstmModel);
+        const ensBounds = ENS.reduce((acc, c) => { acc.push((acc.length ? acc[acc.length - 1] : 0) + c.ep); return acc; }, []);
+        finishForecast(models, series, horizon, metric, { model: nets, lo, span, W, all, h, test, lossHist, epochs: totalEp, ensBounds, models });
+        return;
+      }
+      if (!cur) { cur = lstmCreate(ENS[ci].H, 314159 + ci * 7919); ep = 0; }
+      const cfg = ENS[ci];
+      const lr = cfg.lr * (1 - ep / cfg.ep * 0.85);
+      let lsum = 0;
+      for (const [x, y] of samples) lsum += lstmTrainStep(cur, x, y, lr);
+      ep++; doneEp++;
+      lossHist.push(lsum / samples.length);
+      setProg('LSTM 集成训练 ' + (ci + 1) + '/' + ENS.length + ' · epoch ' + ep + '/' + cfg.ep + ' · loss=' + (lsum / samples.length).toFixed(5));
+      if (ep < cfg.ep) { setTimeout(trainLoop, 0); return; }
+      nets.push(cur); cur = null; ci++;
+      setTimeout(trainLoop, 0);
+    })();
+  }
+}
+ function trainLstm() {
+    const W = 7;
+    const lo = Math.min(...train), hi = Math.max(...train), span = (hi - lo) || 1;
+    const norm = v => (v - lo) / span;
+    const win = train.map(norm);
+    let samples = [];
+    for (let i = W; i < win.length; i++) samples.push([win.slice(i - W, i), win[i]]);
+    if (samples.length > 800) samples = samples.filter((_, i) => i % Math.ceil(samples.length / 800) === 0);
+    const ENS = [{ H: 10, ep: 600, lr: 0.025 }, { H: 12, ep: 600, lr: 0.02 }, { H: 8, ep: 600, lr: 0.03 }];
+    const nets = [], lossHist = [];
+    let ci = 0, ep = 0, cur = null;
+    (function trainLoop() {
+      if (ci >= ENS.length) {
+        prog.classList.add('hidden'); btn.disabled = false; btn.classList.remove('opacity-60');
+        // 与其它模型统一的分块滚动回测协议（每 horizon 天重置窗口，避免长递推误差累积）
+        const lstmBlockPredict = (w) => {
+          const seqs = nets.map(() => w.map(norm)), out = [];
+          for (let i = 0; i < horizon; i++) {
+            let ysum = 0;
+            nets.forEach((m, mi) => {
+              const yhat = lstmForward(m, seqs[mi].slice(-W)).y;
+              ysum += yhat; seqs[mi].push(Math.max(0, Math.min(1, yhat)));
+            });
+            out.push(Math.max(0, (ysum / nets.length) * span + lo));
+          }
+          return out;
+        };
+        const lp = blockBacktest({ predict: lstmBlockPredict }, all, train.length, h, horizon, W);
+        const futSeqs = nets.map(() => all.slice(-W).map(norm)), fut = [];
+        for (let i = 0; i < horizon; i++) {
+          let ysum = 0;
+          nets.forEach((m, mi) => {
+            const yhat = lstmForward(m, futSeqs[mi].slice(-W)).y;
+            ysum += yhat; futSeqs[mi].push(Math.max(0, Math.min(1, yhat)));
+          });
+          fut.push(Math.max(0, (ysum / nets.length) * span + lo));
+        }
+        const lstmModel = { name: 'LSTM 集成模型', cat: '深度时序 · 3 子网', preds: lp, fut, ...errMetrics(test, lp) };
+        lstmModel.p1 = w => {
+          const xs = w.slice(-W).map(norm);
+          let s = 0; for (const m of nets) s += lstmForward(m, xs).y;
+          return Math.max(0, s / nets.length * span + lo);
+        };
+        models.push(lstmModel);
+        const ensBounds = ENS.reduce((acc, c) => { acc.push((acc.length ? acc[acc.length - 1] : 0) + c.ep); return acc; }, []);
+        finishForecast(models, series, horizon, metric, { model: nets, lo, span, W, all, h, test, lossHist, epochs: totalEp, ensBounds, models });
+        return;
+      }
+      if (!cur) { cur = lstmCreate(ENS[ci].H, 314159 + ci * 7919); ep = 0; }
+      const cfg = ENS[ci];
+      const lr = cfg.lr * (1 - ep / cfg.ep * 0.85);
+      let lsum = 0;
+      for (const [x, y] of samples) lsum += lstmTrainStep(cur, x, y, lr);
+      ep++; doneEp++;
+      lossHist.push(lsum / samples.length);
+      setProg('LSTM 集成训练 ' + (ci + 1) + '/' + ENS.length + ' · epoch ' + ep + '/' + cfg.ep + ' · loss=' + (lsum / samples.length).toFixed(5));
+      if (ep < cfg.ep) { setTimeout(trainLoop, 0); return; }
+      nets.push(cur); cur = null; ci++;
+      setTimeout(trainLoop, 0);
+    })();
+  }
+}
+ function trainLstm() {
+    const W = 7;
+    const lo = Math.min(...train), hi = Math.max(...train), span = (hi - lo) || 1;
+    const norm = v => (v - lo) / span;
+    const win = train.map(norm);
+    let samples = [];
+    for (let i = W; i < win.length; i++) samples.push([win.slice(i - W, i), win[i]]);
+    if (samples.length > 800) samples = samples.filter((_, i) => i % Math.ceil(samples.length / 800) === 0);
+    const ENS = [{ H: 10, ep: 600, lr: 0.025 }, { H: 12, ep: 600, lr: 0.02 }, { H: 8, ep: 600, lr: 0.03 }];
+    const nets = [], lossHist = [];
+    let ci = 0, ep = 0, cur = null;
+    (function trainLoop() {
+      if (ci >= ENS.length) {
+        prog.classList.add('hidden'); btn.disabled = false; btn.classList.remove('opacity-60');
+        // 与其它模型统一的分块滚动回测协议（每 horizon 天重置窗口，避免长递推误差累积）
+        const lstmBlockPredict = (w) => {
+          const seqs = nets.map(() => w.map(norm)), out = [];
+          for (let i = 0; i < horizon; i++) {
+            let ysum = 0;
+            nets.forEach((m, mi) => {
+              const yhat = lstmForward(m, seqs[mi].slice(-W)).y;
+              ysum += yhat; seqs[mi].push(Math.max(0, Math.min(1, yhat)));
+            });
+            out.push(Math.max(0, (ysum / nets.length) * span + lo));
+          }
+          return out;
+        };
+        const lp = blockBacktest({ predict: lstmBlockPredict }, all, train.length, h, horizon, W);
+        const futSeqs = nets.map(() => all.slice(-W).map(norm)), fut = [];
+        for (let i = 0; i < horizon; i++) {
+          let ysum = 0;
+          nets.forEach((m, mi) => {
+            const yhat = lstmForward(m, futSeqs[mi].slice(-W)).y;
+            ysum += yhat; futSeqs[mi].push(Math.max(0, Math.min(1, yhat)));
+          });
+          fut.push(Math.max(0, (ysum / nets.length) * span + lo));
+        }
+        const lstmModel = { name: 'LSTM 集成模型', cat: '深度时序 · 3 子网', preds: lp, fut, ...errMetrics(test, lp) };
+        lstmModel.p1 = w => {
+          const xs = w.slice(-W).map(norm);
+          let s = 0; for (const m of nets) s += lstmForward(m, xs).y;
+          return Math.max(0, s / nets.length * span + lo);
+        };
+        models.push(lstmModel);
+        const ensBounds = ENS.reduce((acc, c) => { acc.push((acc.length ? acc[acc.length - 1] : 0) + c.ep); return acc; }, []);
+        finishForecast(models, series, horizon, metric, { model: nets, lo, span, W, all, h, test, lossHist, epochs: totalEp, ensBounds, models });
+        return;
+      }
+      if (!cur) { cur = lstmCreate(ENS[ci].H, 314159 + ci * 7919); ep = 0; }
+      const cfg = ENS[ci];
+      const lr = cfg.lr * (1 - ep / cfg.ep * 0.85);
+      let lsum = 0;
+      for (const [x, y] of samples) lsum += lstmTrainStep(cur, x, y, lr);
+      ep++; doneEp++;
+      lossHist.push(lsum / samples.length);
+      setProg('LSTM 集成训练 ' + (ci + 1) + '/' + ENS.length + ' · epoch ' + ep + '/' + cfg.ep + ' · loss=' + (lsum / samples.length).toFixed(5));
+      if (ep < cfg.ep) { setTimeout(trainLoop, 0); return; }
+      nets.push(cur); cur = null; ci++;
+      setTimeout(trainLoop, 0);
+    })();
+  }
+}
+ function trainLstm() {
+    const W = 7;
+    const lo = Math.min(...train), hi = Math.max(...train), span = (hi - lo) || 1;
+    const norm = v => (v - lo) / span;
+    const win = train.map(norm);
+    let samples = [];
+    for (let i = W; i < win.length; i++) samples.push([win.slice(i - W, i), win[i]]);
+    if (samples.length > 800) samples = samples.filter((_, i) => i % Math.ceil(samples.length / 800) === 0);
+    const ENS = [{ H: 10, ep: 600, lr: 0.025 }, { H: 12, ep: 600, lr: 0.02 }, { H: 8, ep: 600, lr: 0.03 }];
+    const nets = [], lossHist = [];
+    let ci = 0, ep = 0, cur = null;
+    (function trainLoop() {
+      if (ci >= ENS.length) {
+        prog.classList.add('hidden'); btn.disabled = false; btn.classList.remove('opacity-60');
+        // 与其它模型统一的分块滚动回测协议（每 horizon 天重置窗口，避免长递推误差累积）
+        const lstmBlockPredict = (w) => {
+          const seqs = nets.map(() => w.map(norm)), out = [];
+          for (let i = 0; i < horizon; i++) {
+            let ysum = 0;
+            nets.forEach((m, mi) => {
+              const yhat = lstmForward(m, seqs[mi].slice(-W)).y;
+              ysum += yhat; seqs[mi].push(Math.max(0, Math.min(1, yhat)));
+            });
+            out.push(Math.max(0, (ysum / nets.length) * span + lo));
+          }
+          return out;
+        };
+        const lp = blockBacktest({ predict: lstmBlockPredict }, all, train.length, h, horizon, W);
+        const futSeqs = nets.map(() => all.slice(-W).map(norm)), fut = [];
+        for (let i = 0; i < horizon; i++) {
+          let ysum = 0;
+          nets.forEach((m, mi) => {
+            const yhat = lstmForward(m, futSeqs[mi].slice(-W)).y;
+            ysum += yhat; futSeqs[mi].push(Math.max(0, Math.min(1, yhat)));
+          });
+          fut.push(Math.max(0, (ysum / nets.length) * span + lo));
+        }
+        const lstmModel = { name: 'LSTM 集成模型', cat: '深度时序 · 3 子网', preds: lp, fut, ...errMetrics(test, lp) };
+        lstmModel.p1 = w => {
+          const xs = w.slice(-W).map(norm);
+          let s = 0; for (const m of nets) s += lstmForward(m, xs).y;
+          return Math.max(0, s / nets.length * span + lo);
+        };
+        models.push(lstmModel);
+        const ensBounds = ENS.reduce((acc, c) => { acc.push((acc.length ? acc[acc.length - 1] : 0) + c.ep); return acc; }, []);
+        finishForecast(models, series, horizon, metric, { model: nets, lo, span, W, all, h, test, lossHist, epochs: totalEp, ensBounds, models });
+        return;
+      }
+      if (!cur) { cur = lstmCreate(ENS[ci].H, 314159 + ci * 7919); ep = 0; }
+      const cfg = ENS[ci];
+      const lr = cfg.lr * (1 - ep / cfg.ep * 0.85);
+      let lsum = 0;
+      for (const [x, y] of samples) lsum += lstmTrainStep(cur, x, y, lr);
+      ep++; doneEp++;
+      lossHist.push(lsum / samples.length);
+      setProg('LSTM 集成训练 ' + (ci + 1) + '/' + ENS.length + ' · epoch ' + ep + '/' + cfg.ep + ' · loss=' + (lsum / samples.length).toFixed(5));
+      if (ep < cfg.ep) { setTimeout(trainLoop, 0); return; }
+      nets.push(cur); cur = null; ci++;
+      setTimeout(trainLoop, 0);
+    })();
+  }
+}
+ function trainLstm() {
+    const W = 7;
+    const lo = Math.min(...train), hi = Math.max(...train), span = (hi - lo) || 1;
+    const norm = v => (v - lo) / span;
+    const win = train.map(norm);
+    let samples = [];
+    for (let i = W; i < win.length; i++) samples.push([win.slice(i - W, i), win[i]]);
+    if (samples.length > 800) samples = samples.filter((_, i) => i % Math.ceil(samples.length / 800) === 0);
+    const ENS = [{ H: 10, ep: 600, lr: 0.025 }, { H: 12, ep: 600, lr: 0.02 }, { H: 8, ep: 600, lr: 0.03 }];
+    const nets = [], lossHist = [];
+    let ci = 0, ep = 0, cur = null;
+    (function trainLoop() {
+      if (ci >= ENS.length) {
+        prog.classList.add('hidden'); btn.disabled = false; btn.classList.remove('opacity-60');
+        // 与其它模型统一的分块滚动回测协议（每 horizon 天重置窗口，避免长递推误差累积）
+        const lstmBlockPredict = (w) => {
+          const seqs = nets.map(() => w.map(norm)), out = [];
+          for (let i = 0; i < horizon; i++) {
+            let ysum = 0;
+            nets.forEach((m, mi) => {
+              const yhat = lstmForward(m, seqs[mi].slice(-W)).y;
+              ysum += yhat; seqs[mi].push(Math.max(0, Math.min(1, yhat)));
+            });
+            out.push(Math.max(0, (ysum / nets.length) * span + lo));
+          }
+          return out;
+        };
+        const lp = blockBacktest({ predict: lstmBlockPredict }, all, train.length, h, horizon, W);
+        const futSeqs = nets.map(() => all.slice(-W).map(norm)), fut = [];
+        for (let i = 0; i < horizon; i++) {
+          let ysum = 0;
+          nets.forEach((m, mi) => {
+            const yhat = lstmForward(m, futSeqs[mi].slice(-W)).y;
+            ysum += yhat; futSeqs[mi].push(Math.max(0, Math.min(1, yhat)));
+          });
+          fut.push(Math.max(0, (ysum / nets.length) * span + lo));
+        }
+        const lstmModel = { name: 'LSTM 集成模型', cat: '深度时序 · 3 子网', preds: lp, fut, ...errMetrics(test, lp) };
+        lstmModel.p1 = w => {
+          const xs = w.slice(-W).map(norm);
+          let s = 0; for (const m of nets) s += lstmForward(m, xs).y;
+          return Math.max(0, s / nets.length * span + lo);
+        };
+        models.push(lstmModel);
+        const ensBounds = ENS.reduce((acc, c) => { acc.push((acc.length ? acc[acc.length - 1] : 0) + c.ep); return acc; }, []);
+        finishForecast(models, series, horizon, metric, { model: nets, lo, span, W, all, h, test, lossHist, epochs: totalEp, ensBounds, models });
+        return;
+      }
+      if (!cur) { cur = lstmCreate(ENS[ci].H, 314159 + ci * 7919); ep = 0; }
+      const cfg = ENS[ci];
+      const lr = cfg.lr * (1 - ep / cfg.ep * 0.85);
+      let lsum = 0;
+      for (const [x, y] of samples) lsum += lstmTrainStep(cur, x, y, lr);
+      ep++; doneEp++;
+      lossHist.push(lsum / samples.length);
+      setProg('LSTM 集成训练 ' + (ci + 1) + '/' + ENS.length + ' · epoch ' + ep + '/' + cfg.ep + ' · loss=' + (lsum / samples.length).toFixed(5));
+      if (ep < cfg.ep) { setTimeout(trainLoop, 0); return; }
+      nets.push(cur); cur = null; ci++;
+      setTimeout(trainLoop, 0);
+    })();
+  }
+}
+ function trainLstm() {
+    const W = 7;
+    const lo = Math.min(...train), hi = Math.max(...train), span = (hi - lo) || 1;
+    const norm = v => (v - lo) / span;
+    const win = train.map(norm);
+    let samples = [];
+    for (let i = W; i < win.length; i++) samples.push([win.slice(i - W, i), win[i]]);
+    if (samples.length > 800) samples = samples.filter((_, i) => i % Math.ceil(samples.length / 800) === 0);
+    const ENS = [{ H: 10, ep: 600, lr: 0.025 }, { H: 12, ep: 600, lr: 0.02 }, { H: 8, ep: 600, lr: 0.03 }];
+    const nets = [], lossHist = [];
+    let ci = 0, ep = 0, cur = null;
+    (function trainLoop() {
+      if (ci >= ENS.length) {
+        prog.classList.add('hidden'); btn.disabled = false; btn.classList.remove('opacity-60');
+        // 与其它模型统一的分块滚动回测协议（每 horizon 天重置窗口，避免长递推误差累积）
+        const lstmBlockPredict = (w) => {
+          const seqs = nets.map(() => w.map(norm)), out = [];
+          for (let i = 0; i < horizon; i++) {
+            let ysum = 0;
+            nets.forEach((m, mi) => {
+              const yhat = lstmForward(m, seqs[mi].slice(-W)).y;
+              ysum += yhat; seqs[mi].push(Math.max(0, Math.min(1, yhat)));
+            });
+            out.push(Math.max(0, (ysum / nets.length) * span + lo));
+          }
+          return out;
+        };
+        const lp = blockBacktest({ predict: lstmBlockPredict }, all, train.length, h, horizon, W);
+        const futSeqs = nets.map(() => all.slice(-W).map(norm)), fut = [];
+        for (let i = 0; i < horizon; i++) {
+          let ysum = 0;
+          nets.forEach((m, mi) => {
+            const yhat = lstmForward(m, futSeqs[mi].slice(-W)).y;
+            ysum += yhat; futSeqs[mi].push(Math.max(0, Math.min(1, yhat)));
+          });
+          fut.push(Math.max(0, (ysum / nets.length) * span + lo));
+        }
+        const lstmModel = { name: 'LSTM 集成模型', cat: '深度时序 · 3 子网', preds: lp, fut, ...errMetrics(test, lp) };
+        lstmModel.p1 = w => {
+          const xs = w.slice(-W).map(norm);
+          let s = 0; for (const m of nets) s += lstmForward(m, xs).y;
+          return Math.max(0, s / nets.length * span + lo);
+        };
+        models.push(lstmModel);
+        const ensBounds = ENS.reduce((acc, c) => { acc.push((acc.length ? acc[acc.length - 1] : 0) + c.ep); return acc; }, []);
+        finishForecast(models, series, horizon, metric, { model: nets, lo, span, W, all, h, test, lossHist, epochs: totalEp, ensBounds, models });
+        return;
+      }
+      if (!cur) { cur = lstmCreate(ENS[ci].H, 314159 + ci * 7919); ep = 0; }
+      const cfg = ENS[ci];
+      const lr = cfg.lr * (1 - ep / cfg.ep * 0.85);
+      let lsum = 0;
+      for (const [x, y] of samples) lsum += lstmTrainStep(cur, x, y, lr);
+      ep++; doneEp++;
+      lossHist.push(lsum / samples.length);
+      setProg('LSTM 集成训练 ' + (ci + 1) + '/' + ENS.length + ' · epoch ' + ep + '/' + cfg.ep + ' · loss=' + (lsum / samples.length).toFixed(5));
+      if (ep < cfg.ep) { setTimeout(trainLoop, 0); return; }
+      nets.push(cur); cur = null; ci++;
+      setTimeout(trainLoop, 0);
+    })();
+  }
+}
+ function trainLstm() {
+    const W = 7;
+    const lo = Math.min(...train), hi = Math.max(...train), span = (hi - lo) || 1;
+    const norm = v => (v - lo) / span;
+    const win = train.map(norm);
+    let samples = [];
+    for (let i = W; i < win.length; i++) samples.push([win.slice(i - W, i), win[i]]);
+    if (samples.length > 800) samples = samples.filter((_, i) => i % Math.ceil(samples.length / 800) === 0);
+    const ENS = [{ H: 10, ep: 600, lr: 0.025 }, { H: 12, ep: 600, lr: 0.02 }, { H: 8, ep: 600, lr: 0.03 }];
+    const nets = [], lossHist = [];
+    let ci = 0, ep = 0, cur = null;
+    (function trainLoop() {
+      if (ci >= ENS.length) {
+        prog.classList.add('hidden'); btn.disabled = false; btn.classList.remove('opacity-60');
+        // 与其它模型统一的分块滚动回测协议（每 horizon 天重置窗口，避免长递推误差累积）
+        const lstmBlockPredict = (w) => {
+          const seqs = nets.map(() => w.map(norm)), out = [];
+          for (let i = 0; i < horizon; i++) {
+            let ysum = 0;
+            nets.forEach((m, mi) => {
+              const yhat = lstmForward(m, seqs[mi].slice(-W)).y;
+              ysum += yhat; seqs[mi].push(Math.max(0, Math.min(1, yhat)));
+            });
+            out.push(Math.max(0, (ysum / nets.length) * span + lo));
+          }
+          return out;
+        };
+        const lp = blockBacktest({ predict: lstmBlockPredict }, all, train.length, h, horizon, W);
+        const futSeqs = nets.map(() => all.slice(-W).map(norm)), fut = [];
+        for (let i = 0; i < horizon; i++) {
+          let ysum = 0;
+          nets.forEach((m, mi) => {
+            const yhat = lstmForward(m, futSeqs[mi].slice(-W)).y;
+            ysum += yhat; futSeqs[mi].push(Math.max(0, Math.min(1, yhat)));
+          });
+          fut.push(Math.max(0, (ysum / nets.length) * span + lo));
+        }
+        const lstmModel = { name: 'LSTM 集成模型', cat: '深度时序 · 3 子网', preds: lp, fut, ...errMetrics(test, lp) };
+        lstmModel.p1 = w => {
+          const xs = w.slice(-W).map(norm);
+          let s = 0; for (const m of nets) s += lstmForward(m, xs).y;
+          return Math.max(0, s / nets.length * span + lo);
+        };
+        models.push(lstmModel);
+        const ensBounds = ENS.reduce((acc, c) => { acc.push((acc.length ? acc[acc.length - 1] : 0) + c.ep); return acc; }, []);
+        finishForecast(models, series, horizon, metric, { model: nets, lo, span, W, all, h, test, lossHist, epochs: totalEp, ensBounds, models });
+        return;
+      }
+      if (!cur) { cur = lstmCreate(ENS[ci].H, 314159 + ci * 7919); ep = 0; }
+      const cfg = ENS[ci];
+      const lr = cfg.lr * (1 - ep / cfg.ep * 0.85);
+      let lsum = 0;
+      for (const [x, y] of samples) lsum += lstmTrainStep(cur, x, y, lr);
+      ep++; doneEp++;
+      lossHist.push(lsum / samples.length);
+      setProg('LSTM 集成训练 ' + (ci + 1) + '/' + ENS.length + ' · epoch ' + ep + '/' + cfg.ep + ' · loss=' + (lsum / samples.length).toFixed(5));
+      if (ep < cfg.ep) { setTimeout(trainLoop, 0); return; }
+      nets.push(cur); cur = null; ci++;
+      setTimeout(trainLoop, 0);
+    })();
+  }
+}
+ function trainLstm() {
+    const W = 7;
+    const lo = Math.min(...train), hi = Math.max(...train), span = (hi - lo) || 1;
+    const norm = v => (v - lo) / span;
+    const win = train.map(norm);
+    let samples = [];
+    for (let i = W; i < win.length; i++) samples.push([win.slice(i - W, i), win[i]]);
+    if (samples.length > 800) samples = samples.filter((_, i) => i % Math.ceil(samples.length / 800) === 0);
+    const ENS = [{ H: 10, ep: 600, lr: 0.025 }, { H: 12, ep: 600, lr: 0.02 }, { H: 8, ep: 600, lr: 0.03 }];
+    const nets = [], lossHist = [];
+    let ci = 0, ep = 0, cur = null;
+    (function trainLoop() {
+      if (ci >= ENS.length) {
+        prog.classList.add('hidden'); btn.disabled = false; btn.classList.remove('opacity-60');
+        // 与其它模型统一的分块滚动回测协议（每 horizon 天重置窗口，避免长递推误差累积）
+        const lstmBlockPredict = (w) => {
+          const seqs = nets.map(() => w.map(norm)), out = [];
+          for (let i = 0; i < horizon; i++) {
+            let ysum = 0;
+            nets.forEach((m, mi) => {
+              const yhat = lstmForward(m, seqs[mi].slice(-W)).y;
+              ysum += yhat; seqs[mi].push(Math.max(0, Math.min(1, yhat)));
+            });
+            out.push(Math.max(0, (ysum / nets.length) * span + lo));
+          }
+          return out;
+        };
+        const lp = blockBacktest({ predict: lstmBlockPredict }, all, train.length, h, horizon, W);
+        const futSeqs = nets.map(() => all.slice(-W).map(norm)), fut = [];
+        for (let i = 0; i < horizon; i++) {
+          let ysum = 0;
+          nets.forEach((m, mi) => {
+            const yhat = lstmForward(m, futSeqs[mi].slice(-W)).y;
+            ysum += yhat; futSeqs[mi].push(Math.max(0, Math.min(1, yhat)));
+          });
+          fut.push(Math.max(0, (ysum / nets.length) * span + lo));
+        }
+        const lstmModel = { name: 'LSTM 集成模型', cat: '深度时序 · 3 子网', preds: lp, fut, ...errMetrics(test, lp) };
+        lstmModel.p1 = w => {
+          const xs = w.slice(-W).map(norm);
+          let s = 0; for (const m of nets) s += lstmForward(m, xs).y;
+          return Math.max(0, s / nets.length * span + lo);
+        };
+        models.push(lstmModel);
+        const ensBounds = ENS.reduce((acc, c) => { acc.push((acc.length ? acc[acc.length - 1] : 0) + c.ep); return acc; }, []);
+        finishForecast(models, series, horizon, metric, { model: nets, lo, span, W, all, h, test, lossHist, epochs: totalEp, ensBounds, models });
+        return;
+      }
+      if (!cur) { cur = lstmCreate(ENS[ci].H, 314159 + ci * 7919); ep = 0; }
+      const cfg = ENS[ci];
+      const lr = cfg.lr * (1 - ep / cfg.ep * 0.85);
+      let lsum = 0;
+      for (const [x, y] of samples) lsum += lstmTrainStep(cur, x, y, lr);
+      ep++; doneEp++;
+      lossHist.push(lsum / samples.length);
+      setProg('LSTM 集成训练 ' + (ci + 1) + '/' + ENS.length + ' · epoch ' + ep + '/' + cfg.ep + ' · loss=' + (lsum / samples.length).toFixed(5));
+      if (ep < cfg.ep) { setTimeout(trainLoop, 0); return; }
+      nets.push(cur); cur = null; ci++;
+      setTimeout(trainLoop, 0);
+    })();
+  }
+}
 
 function errMetrics(actual, pred) {
   let mae = 0, rmse = 0, mape = 0, cnt = 0, sumA = 0, sumE = 0;
