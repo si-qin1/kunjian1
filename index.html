@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  鲲鉴智策 · 可解释时序预测与决策平台  v3.9（对话式数据分析版）
+  KUNJIAN ZHICE — Explainable Time-Series Forecasting & Decision Platform
+  ----------------------------------------------------------------------------
+  纯静态前端工程，不需要构建、不需要后端，克隆下来直接打开就能用。
+
+  目录结构：
+    index.html            页面骨架（含对话助手面板 DOM）
+    css/style.css         全局样式（登录页主题 / 通用组件 / 对话助手）
+    js/                   业务代码，按职责拆分：
+                            auth      账号与登录
+                            store     数据层与演示数据
+                            ui        Tab、提示、格式化
+                            records / reconcile / customers   送货、对账、客户
+                            excel     Excel 导入导出与备份
+                            insights  数据体检、雷达图、蜂窝图
+                            models    七个时序模型（手写前向+反向）
+                            forecast  预测主流程
+                            stats     Diebold–Mariano 检验
+                            xai       TimeSliver 归因
+                            canvas    绘图基础设施
+                            report    决策驾驶舱
+                            sealife   登录页动效
+                            nlq       对话式数据分析智能体「秦思智能体」
+                            main      启动入口
+    vendor/               第三方依赖（Tailwind 运行时、xlsx-js-style）
+    README.md             项目说明与部署指引
+    环境配置.txt           环境变量模板与依赖清单
+
+  运行环境：Chrome / Edge 90+，Safari 15+；无需联网（依赖已本地化）。
+  ============================================================================
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="description" content="面向国际深海臻品供应链中小企业的可解释时序预测与经营决策平台">
+<title>鲲鉴智策 · 可解释时序预测与决策平台</title>
+
+<!-- 第三方依赖：Tailwind 原子类运行时、Excel 读写库，均已本地化，不依赖 CDN -->
+<script src="vendor/tailwindcss.js"></script>
+<script src="vendor/xlsx.bundle.js"></script>
+
+<!-- 环境变量先于业务代码加载 -->
+<script src="js/env.js"></script>
+
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-slate-100 text-slate-800">
+<!-- ============ 登录页（玻璃拟态 · 深海主题） ============ -->
+<div id="login-page" class="fixed inset-0 z-[100] flex justify-center overflow-x-hidden overflow-y-auto px-4 py-3"
+     style="background:radial-gradient(1000px 700px at 84% 6%,rgba(129,140,248,.16),transparent 60%),radial-gradient(900px 640px at 6% 92%,rgba(45,212,191,.20),transparent 62%),linear-gradient(140deg,#eaf4ff 0%,#dbeafe 34%,#e0f2fe 62%,#d5f2fb 100%);-webkit-overflow-scrolling:touch">
+  <!-- 氛围光斑 -->
+  <div class="lg-float1 absolute -top-28 -left-24 w-[26rem] h-[26rem] rounded-full pointer-events-none"
+       style="background:radial-gradient(circle,rgba(125,211,252,.4) 0%,transparent 68%)"></div>
+  <div class="lg-float2 absolute -bottom-36 -right-24 w-[30rem] h-[30rem] rounded-full pointer-events-none"
+       style="background:radial-gradient(circle,rgba(165,180,252,.32) 0%,transparent 68%)"></div>
+  <div class="lg-float1 absolute top-[34%] right-[16%] w-[18rem] h-[18rem] rounded-full pointer-events-none"
+       style="background:radial-gradient(circle,rgba(147,197,253,.3) 0%,transparent 66%)"></div>
+  <!-- 上浮气泡 -->
+  <div class="absolute inset-0 pointer-events-none overflow-hidden">
+    <div class="lg-bubble" style="left:8%;width:34px;height:34px;animation-duration:13s;animation-delay:0s"></div>
+    <div class="lg-bubble" style="left:22%;width:14px;height:14px;animation-duration:9s;animation-delay:2.5s"></div>
+    <div class="lg-bubble" style="left:41%;width:22px;height:22px;animation-duration:16s;animation-delay:5s"></div>
+    <div class="lg-bubble" style="left:58%;width:10px;height:10px;animation-duration:11s;animation-delay:1.2s"></div>
+    <div class="lg-bubble" style="left:72%;width:28px;height:28px;animation-duration:14s;animation-delay:3.4s"></div>
+    <div class="lg-bubble" style="left:87%;width:16px;height:16px;animation-duration:10s;animation-delay:6s"></div>
+    <div class="lg-bubble" style="left:93%;width:38px;height:38px;animation-duration:18s;animation-delay:4s"></div>
+<!-- 深海生物层：6 条鱼 + 1 只大龙虾 + 1 只帝王蟹，轨迹与朝向由 initSeaLife() 运行时随机生成 -->
+    <div id="lg-sealife" aria-hidden="true"></div>
+
+  </div>
+
+  <!-- 底部漂动波浪 -->
+  <div class="absolute bottom-0 left-0 w-[200%] pointer-events-none opacity-30">
+    <svg class="lg-wave" width="100%" height="120" viewBox="0 0 1200 120" preserveAspectRatio="none">
+      <path d="M0,60 C150,110 350,10 600,60 C850,110 1050,10 1200,60 L1200,120 L0,120 Z" fill="rgba(125,211,252,.45)"/>
+      <path d="M0,85 C200,35 400,120 600,80 C800,40 1000,120 1200,75 L1200,120 L0,120 Z" fill="rgba(186,230,253,.55)"/>
+    </svg>
+  </div>
+
+  <div class="w-full max-w-sm relative z-10 my-auto py-1">
+    <div class="text-center mb-4">
+      <div class="lg-logo select-none" style="background:transparent;border:none;animation:glowPulse 4.5s ease-in-out infinite;border-radius:50%;overflow:visible">
+        <svg width="104" height="104" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="鲲鉴智策帝王蟹吉祥物">
+  <defs>
+    <!-- 蟹壳：暖橙红渐变，完全避开粉红 -->
+    <linearGradient id="kjshell" x1="0.18" y1="0.05" x2="0.86" y2="0.98">
+      <stop offset="0" stop-color="#ffd7a8"/>
+      <stop offset="0.28" stop-color="#fdba74"/>
+      <stop offset="0.58" stop-color="#fb923c"/>
+      <stop offset="0.84" stop-color="#ea580c"/>
+      <stop offset="1" stop-color="#c2410c"/>
+    </linearGradient>
+    <linearGradient id="kjclaw" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#fdba74"/>
+      <stop offset="0.45" stop-color="#f97316"/>
+      <stop offset="1" stop-color="#c2410c"/>
+    </linearGradient>
+    <linearGradient id="kjleg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fb923c"/>
+      <stop offset="1" stop-color="#b45309"/>
+    </linearGradient>
+    <linearGradient id="kjgold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fef3c7"/>
+      <stop offset="0.45" stop-color="#fcd34d"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+    <radialGradient id="kjshine" cx="0.3" cy="0.22" r="0.7">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    
+      <radialGradient id="kjbg" cx="0.34" cy="0.26" r="0.86">
+        <stop offset="0" stop-color="#ffffff"/>
+        <stop offset="0.52" stop-color="#e8f6ff"/>
+        <stop offset="1" stop-color="#bfe6ff"/>
+      </radialGradient>
+      <linearGradient id="kjring" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#38bdf8"/>
+        <stop offset="0.55" stop-color="#0ea5e9"/>
+        <stop offset="1" stop-color="#6366f1"/>
+      </linearGradient>
+  </defs>
+
+  <!-- ---------- 徽章底 ---------- -->
+  <circle cx="256" cy="256" r="248" fill="url(#kjbg)"/>
+  <circle cx="256" cy="256" r="240" fill="none" stroke="#bae6fd" stroke-opacity="0.85" stroke-width="3"/>
+  <circle cx="256" cy="256" r="228" fill="none" stroke="url(#kjring)" stroke-opacity="0.5" stroke-width="5" stroke-linecap="round" stroke-dasharray="150 1000" transform="rotate(-42 256 256)"/>
+
+  <!-- ---------- 八条步足（先画，压在壳后） ---------- -->
+  <g stroke="url(#kjleg)" stroke-width="21" stroke-linecap="round" fill="none">
+    <path d="M158 336 C126 344 100 366 86 398"/>
+    <path d="M154 362 C124 374 104 396 94 428"/>
+    <path d="M164 388 C142 404 128 426 124 454"/>
+    <path d="M182 408 C168 428 162 448 162 468"/>
+  </g>
+  <g stroke="url(#kjleg)" stroke-width="21" stroke-linecap="round" fill="none" transform="translate(512,0) scale(-1,1)">
+    <path d="M158 336 C126 344 100 366 86 398"/>
+    <path d="M154 362 C124 374 104 396 94 428"/>
+    <path d="M164 388 C142 404 128 426 124 454"/>
+    <path d="M182 408 C168 428 162 448 162 468"/>
+  </g>
+  <!-- 步足高光 -->
+  <g stroke="#ffd7a8" stroke-opacity="0.55" stroke-width="6" stroke-linecap="round" fill="none">
+    <path d="M160 334 C132 342 108 360 94 388"/>
+    <path d="M166 386 C146 400 134 418 130 442"/>
+  </g>
+
+  <!-- ---------- 一对大螯（举在身体两侧） ---------- -->
+  <g>
+    <path d="M170 318 C150 300 136 282 128 262" stroke="#e2590b" stroke-width="30" stroke-linecap="round" fill="none"/>
+    <g transform="translate(104 224) rotate(-16)">
+      <ellipse cx="0" cy="-14" rx="31" ry="44" transform="rotate(-22)" fill="url(#kjclaw)"/>
+      <ellipse cx="34" cy="16" rx="27" ry="38" transform="rotate(26)" fill="url(#kjclaw)"/>
+      <path d="M-8 -52 C6 -66 24 -62 30 -48" stroke="#7c2d12" stroke-opacity="0.35" stroke-width="6" stroke-linecap="round" fill="none"/>
+      <ellipse cx="-8" cy="-24" rx="10" ry="18" transform="rotate(-24)" fill="#ffd7a8" opacity="0.55"/>
+    </g>
+  </g>
+  <g transform="translate(512,0) scale(-1,1)">
+    <path d="M170 318 C150 300 136 282 128 262" stroke="#e2590b" stroke-width="30" stroke-linecap="round" fill="none"/>
+    <g transform="translate(104 224) rotate(-16)">
+      <ellipse cx="0" cy="-14" rx="31" ry="44" transform="rotate(-22)" fill="url(#kjclaw)"/>
+      <ellipse cx="34" cy="16" rx="27" ry="38" transform="rotate(26)" fill="url(#kjclaw)"/>
+      <path d="M-8 -52 C6 -66 24 -62 30 -48" stroke="#7c2d12" stroke-opacity="0.35" stroke-width="6" stroke-linecap="round" fill="none"/>
+      <ellipse cx="-8" cy="-24" rx="10" ry="18" transform="rotate(-24)" fill="#ffd7a8" opacity="0.55"/>
+    </g>
+  </g>
+
+  <!-- ---------- 蟹壳 ---------- -->
+  <ellipse cx="256" cy="304" rx="136" ry="116" fill="url(#kjshell)"/>
+  <ellipse cx="256" cy="304" rx="136" ry="116" fill="none" stroke="#c2410c" stroke-opacity="0.35" stroke-width="4"/>
+  <!-- 壳面纹理：V 形额纹 + 侧鳃纹 -->
+  <path d="M206 246 C222 262 240 270 256 270 C272 270 290 262 306 246" stroke="#c2410c" stroke-opacity="0.28" stroke-width="7" stroke-linecap="round" fill="none"/>
+  <path d="M182 300 C202 316 226 324 256 324 C286 324 310 316 330 300" stroke="#ffffff" stroke-opacity="0.4" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <ellipse cx="210" cy="344" rx="9" ry="7" fill="#c2410c" opacity="0.3"/>
+  <ellipse cx="256" cy="356" rx="8" ry="6" fill="#c2410c" opacity="0.26"/>
+  <ellipse cx="302" cy="344" rx="9" ry="7" fill="#c2410c" opacity="0.3"/>
+  <!-- 左上大面积柔光 -->
+  <ellipse cx="206" cy="264" rx="76" ry="52" transform="rotate(-26 206 264)" fill="url(#kjshine)"/>
+
+  <!-- ---------- 眼柄 + 大眼睛 ---------- -->
+  <g>
+    <rect x="192" y="196" width="24" height="40" rx="12" fill="#e2590b"/>
+    <rect x="296" y="196" width="24" height="40" rx="12" fill="#e2590b"/>
+    <circle cx="204" cy="216" r="34" fill="#fffaf0"/>
+    <circle cx="308" cy="216" r="34" fill="#fffaf0"/>
+    <circle cx="204" cy="216" r="34" fill="none" stroke="#c2410c" stroke-opacity="0.3" stroke-width="3"/>
+    <circle cx="308" cy="216" r="34" fill="none" stroke="#c2410c" stroke-opacity="0.3" stroke-width="3"/>
+    <!-- 瞳孔略向内下，带双高光，显得无辜 -->
+    <circle cx="211" cy="223" r="18" fill="#4a1d0f"/>
+    <circle cx="301" cy="223" r="18" fill="#4a1d0f"/>
+    <circle cx="205" cy="215" r="7" fill="#ffffff"/>
+    <circle cx="216" cy="231" r="3.4" fill="#ffffff" opacity="0.9"/>
+    <circle cx="295" cy="215" r="7" fill="#ffffff"/>
+    <circle cx="306" cy="231" r="3.4" fill="#ffffff" opacity="0.9"/>
+  </g>
+
+  <!-- ---------- 腮红（浅橙金，非粉红）+ 微笑 ---------- -->
+  <ellipse cx="170" cy="330" rx="24" ry="14" fill="#fdba74" opacity="0.75"/>
+  <ellipse cx="342" cy="330" rx="24" ry="14" fill="#fdba74" opacity="0.75"/>
+  <path d="M226 330 Q241 348 256 336 Q271 348 286 330" stroke="#7c2d12" stroke-width="7" stroke-linecap="round" fill="none"/>
+  <path d="M243 337 L243 326 L251 334 Z" fill="#fffaf0"/>
+  <path d="M269 337 L269 326 L261 334 Z" fill="#fffaf0"/>
+
+  <!-- ---------- 帝王小皇冠 ---------- -->
+  <g>
+    <path d="M214 148 L214 112 L238 132 L256 100 L274 132 L298 112 L298 148 Z"
+          fill="url(#kjgold)" stroke="#b45309" stroke-width="5" stroke-linejoin="round"/>
+    <circle cx="214" cy="106" r="7" fill="#fef9c3" stroke="#b45309" stroke-width="3"/>
+    <circle cx="298" cy="106" r="7" fill="#fef9c3" stroke="#b45309" stroke-width="3"/>
+    <circle cx="256" cy="94" r="8" fill="#fef9c3" stroke="#b45309" stroke-width="3"/>
+    <circle cx="256" cy="132" r="7" fill="#38bdf8"/>
+  </g>
+
+  <!-- ---------- 环境气泡与星芒 ---------- -->
+  <g fill="#ffffff">
+    <path d="M406 150 l5 12 12 5 -12 5 -5 12 -5 -12 -12 -5 12 -5 Z" opacity="0.9"/>
+    <path d="M104 176 l4 9.5 9.5 4 -9.5 4 -4 9.5 -4 -9.5 -9.5 -4 9.5 -4 Z" opacity="0.7" fill="#7dd3fc"/>
+    <circle cx="418" cy="332" r="8" opacity="0.45" fill="#7dd3fc"/>
+    <circle cx="96" cy="330" r="10" opacity="0.35" fill="#7dd3fc"/>
+    <circle cx="392" cy="404" r="6" opacity="0.4"/>
+    <circle cx="126" cy="424" r="5" opacity="0.35"/>
+  </g>
+</svg>
+      </div>
+      <h1 class="text-[1.9rem] font-bold tracking-[0.2em] lg-brand">✨ 鲲鉴智策 ✨</h1>
+      <p class="text-sky-700/80 text-[12px] mt-1 tracking-[0.18em]">中小企业臻品供应链 · 可解释时序预测与决策平台</p>
+      <div class="lg-chips flex items-center justify-center gap-2 mt-2.5 flex-wrap">
+        <span class="lg-chip">🧠 TimeSliver 归因</span>
+        <span class="lg-chip">🔮 七模型融合预测</span>
+        <span class="lg-chip">🫧 水产进销存</span>
+      </div>
+    </div>
+
+    <div class="lg-card rounded-3xl p-5 fade-in" style="background:rgba(255,255,255,.68);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.9);box-shadow:0 20px 60px rgba(2,132,199,.22)">
+      <!-- 登录 -->
+      <div id="login-form">
+        <h2 class="font-bold text-lg mb-3 text-slate-800">账号登录</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs text-slate-500">登录账号</label>
+            <div class="lg-input-wrap"><span class="lg-input-ico">👤</span>
+            <input id="lg-user" class="lg-input" placeholder="请输入账号" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"></div>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">密码</label>
+            <div class="lg-input-wrap">
+              <span class="lg-input-ico">🔒</span>
+              <input id="lg-pass" type="password" class="lg-input" style="padding-right:2.6rem" placeholder="请输入密码" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+              <button onclick="togglePass('lg-pass',this)" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs px-1">👁</button>
+            </div>
+          </div>
+          <label class="flex items-center gap-2 text-sm text-slate-600 select-none">
+            <input id="lg-remember" type="checkbox" class="rounded accent-sky-500" checked> 记住登录状态
+          </label>
+          <p id="login-error" class="hidden text-sm text-rose-600"></p>
+          <button onclick="doLogin()" class="lg-btn">登 录</button>
+          <div class="flex items-center justify-between text-sm pt-1">
+            <button onclick="showLoginView('register')" class="text-sky-700 hover:text-sky-900 font-medium transition-colors">注册新账号</button>
+            <button onclick="showLoginView('forgot')" class="text-slate-400 hover:text-slate-600 transition-colors">忘记密码？</button>
+          </div>
+        </div>
+        <div class="mt-3 pt-3 border-t border-sky-200/70 text-[11px] text-slate-400 leading-relaxed">
+          <div class="flex items-center justify-between gap-2">
+            <span>默认管理员：<b class="text-slate-600">admin</b>（初始密码由环境变量 DEMO_ADMIN_PASS 配置，演示环境见 env.example.js）</span>
+            <button onclick="lgDemoFill()" class="lg-demo">🫧 一键填入</button>
+          </div>
+          <p class="mt-1.5">首次登录后请到「数据中心」页修改密码。</p>
+        </div>
+      </div>
+
+      <!-- 注册 -->
+      <div id="register-form" class="hidden">
+        <h2 class="font-bold text-lg mb-4 text-slate-800">注册新账号</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs text-slate-500">登录账号 *</label>
+            <div class="lg-input-wrap"><span class="lg-input-ico">👤</span><input id="rg-user" class="lg-input" placeholder="建议使用姓名拼音"></div>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">显示名称</label>
+            <div class="lg-input-wrap"><span class="lg-input-ico">🏷️</span><input id="rg-name" class="lg-input" placeholder="如 张三"></div>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">密码 *（至少6位）</label>
+            <div class="lg-input-wrap"><span class="lg-input-ico">🔒</span><input id="rg-pass" type="password" class="lg-input"></div>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">确认密码 *</label>
+            <div class="lg-input-wrap"><span class="lg-input-ico">🔒</span><input id="rg-pass2" type="password" class="lg-input" onkeydown="if(event.key==='Enter')doRegister()"></div>
+          </div>
+          <p id="register-msg" class="hidden text-sm"></p>
+          <button onclick="doRegister()" class="lg-btn">注 册</button>
+          <button onclick="showLoginView('login')" class="w-full text-slate-400 hover:text-slate-600 text-sm py-1 transition-colors">← 返回登录</button>
+        </div>
+      </div>
+
+      <!-- 忘记密码 -->
+      <div id="forgot-form" class="hidden">
+        <h2 class="font-bold text-lg mb-4 text-slate-800">重置密码</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs text-slate-500">登录账号</label>
+            <div class="lg-input-wrap"><span class="lg-input-ico">👤</span><input id="fg-user" class="lg-input"></div>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">重置密钥（由环境变量 RESET_KEY 配置，本地演示默认见 env.example.js）</label>
+            <div class="lg-input-wrap"><span class="lg-input-ico">🔑</span><input id="fg-key" class="lg-input" placeholder="用于验证身份"></div>
+          </div>
+          <div>
+            <label class="text-xs text-slate-500">新密码 *（至少6位）</label>
+            <div class="lg-input-wrap"><span class="lg-input-ico">🔒</span><input id="fg-pass" type="password" class="lg-input"></div>
+          </div>
+          <p id="forgot-msg" class="hidden text-sm"></p>
+          <button onclick="doReset()" class="lg-btn">重置密码</button>
+          <button onclick="showLoginView('login')" class="w-full text-slate-400 hover:text-slate-600 text-sm py-1 transition-colors">← 返回登录</button>
+        </div>
+      </div>
+    </div>
+    <p class="text-center text-sky-600/70 text-[11px] mt-4 tracking-[.12em]">🫧 KUNJIAN · Explainable Forecasting & Decision Platform 🫧</p>
+  </div>
+</div>
+
+<!-- 顶部导航 -->
+<header id="app-header" class="hidden bg-white shadow-sm sticky top-0 z-40 no-print">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-2">
+    <div class="flex items-center gap-3">
+      <svg width="40" height="40" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-md" role="img" aria-label="鲲鉴智策帝王蟹吉祥物">
+  <defs>
+    <!-- 蟹壳：暖橙红渐变，完全避开粉红 -->
+    <linearGradient id="knshell" x1="0.18" y1="0.05" x2="0.86" y2="0.98">
+      <stop offset="0" stop-color="#ffd7a8"/>
+      <stop offset="0.28" stop-color="#fdba74"/>
+      <stop offset="0.58" stop-color="#fb923c"/>
+      <stop offset="0.84" stop-color="#ea580c"/>
+      <stop offset="1" stop-color="#c2410c"/>
+    </linearGradient>
+    <linearGradient id="knclaw" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#fdba74"/>
+      <stop offset="0.45" stop-color="#f97316"/>
+      <stop offset="1" stop-color="#c2410c"/>
+    </linearGradient>
+    <linearGradient id="knleg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fb923c"/>
+      <stop offset="1" stop-color="#b45309"/>
+    </linearGradient>
+    <linearGradient id="kngold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fef3c7"/>
+      <stop offset="0.45" stop-color="#fcd34d"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+    <radialGradient id="knshine" cx="0.3" cy="0.22" r="0.7">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    
+  </defs>
+
+  <!-- ---------- 徽章底 ---------- -->
+  
+  
+  
+
+  <!-- ---------- 八条步足（先画，压在壳后） ---------- -->
+  <g stroke="url(#knleg)" stroke-width="21" stroke-linecap="round" fill="none">
+    <path d="M158 336 C126 344 100 366 86 398"/>
+    <path d="M154 362 C124 374 104 396 94 428"/>
+    <path d="M164 388 C142 404 128 426 124 454"/>
+    <path d="M182 408 C168 428 162 448 162 468"/>
+  </g>
+  <g stroke="url(#knleg)" stroke-width="21" stroke-linecap="round" fill="none" transform="translate(512,0) scale(-1,1)">
+    <path d="M158 336 C126 344 100 366 86 398"/>
+    <path d="M154 362 C124 374 104 396 94 428"/>
+    <path d="M164 388 C142 404 128 426 124 454"/>
+    <path d="M182 408 C168 428 162 448 162 468"/>
+  </g>
+  <!-- 步足高光 -->
+  <g stroke="#ffd7a8" stroke-opacity="0.55" stroke-width="6" stroke-linecap="round" fill="none">
+    <path d="M160 334 C132 342 108 360 94 388"/>
+    <path d="M166 386 C146 400 134 418 130 442"/>
+  </g>
+
+  <!-- ---------- 一对大螯（举在身体两侧） ---------- -->
+  <g>
+    <path d="M170 318 C150 300 136 282 128 262" stroke="#e2590b" stroke-width="30" stroke-linecap="round" fill="none"/>
+    <g transform="translate(104 224) rotate(-16)">
+      <ellipse cx="0" cy="-14" rx="31" ry="44" transform="rotate(-22)" fill="url(#knclaw)"/>
+      <ellipse cx="34" cy="16" rx="27" ry="38" transform="rotate(26)" fill="url(#knclaw)"/>
+      <path d="M-8 -52 C6 -66 24 -62 30 -48" stroke="#7c2d12" stroke-opacity="0.35" stroke-width="6" stroke-linecap="round" fill="none"/>
+      <ellipse cx="-8" cy="-24" rx="10" ry="18" transform="rotate(-24)" fill="#ffd7a8" opacity="0.55"/>
+    </g>
+  </g>
+  <g transform="translate(512,0) scale(-1,1)">
+    <path d="M170 318 C150 300 136 282 128 262" stroke="#e2590b" stroke-width="30" stroke-linecap="round" fill="none"/>
+    <g transform="translate(104 224) rotate(-16)">
+      <ellipse cx="0" cy="-14" rx="31" ry="44" transform="rotate(-22)" fill="url(#knclaw)"/>
+      <ellipse cx="34" cy="16" rx="27" ry="38" transform="rotate(26)" fill="url(#knclaw)"/>
+      <path d="M-8 -52 C6 -66 24 -62 30 -48" stroke="#7c2d12" stroke-opacity="0.35" stroke-width="6" stroke-linecap="round" fill="none"/>
+      <ellipse cx="-8" cy="-24" rx="10" ry="18" transform="rotate(-24)" fill="#ffd7a8" opacity="0.55"/>
+    </g>
+  </g>
+
+  <!-- ---------- 蟹壳 ---------- -->
+  <ellipse cx="256" cy="304" rx="136" ry="116" fill="url(#knshell)"/>
+  <ellipse cx="256" cy="304" rx="136" ry="116" fill="none" stroke="#c2410c" stroke-opacity="0.35" stroke-width="4"/>
+  <!-- 壳面纹理：V 形额纹 + 侧鳃纹 -->
+  <path d="M206 246 C222 262 240 270 256 270 C272 270 290 262 306 246" stroke="#c2410c" stroke-opacity="0.28" stroke-width="7" stroke-linecap="round" fill="none"/>
+  <path d="M182 300 C202 316 226 324 256 324 C286 324 310 316 330 300" stroke="#ffffff" stroke-opacity="0.4" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <ellipse cx="210" cy="344" rx="9" ry="7" fill="#c2410c" opacity="0.3"/>
+  <ellipse cx="256" cy="356" rx="8" ry="6" fill="#c2410c" opacity="0.26"/>
+  <ellipse cx="302" cy="344" rx="9" ry="7" fill="#c2410c" opacity="0.3"/>
+  <!-- 左上大面积柔光 -->
+  <ellipse cx="206" cy="264" rx="76" ry="52" transform="rotate(-26 206 264)" fill="url(#knshine)"/>
+
+  <!-- ---------- 眼柄 + 大眼睛 ---------- -->
+  <g>
+    <rect x="192" y="196" width="24" height="40" rx="12" fill="#e2590b"/>
+    <rect x="296" y="196" width="24" height="40" rx="12" fill="#e2590b"/>
+    <circle cx="204" cy="216" r="34" fill="#fffaf0"/>
+    <circle cx="308" cy="216" r="34" fill="#fffaf0"/>
+    <circle cx="204" cy="216" r="34" fill="none" stroke="#c2410c" stroke-opacity="0.3" stroke-width="3"/>
+    <circle cx="308" cy="216" r="34" fill="none" stroke="#c2410c" stroke-opacity="0.3" stroke-width="3"/>
+    <!-- 瞳孔略向内下，带双高光，显得无辜 -->
+    <circle cx="211" cy="223" r="18" fill="#4a1d0f"/>
+    <circle cx="301" cy="223" r="18" fill="#4a1d0f"/>
+    <circle cx="205" cy="215" r="7" fill="#ffffff"/>
+    <circle cx="216" cy="231" r="3.4" fill="#ffffff" opacity="0.9"/>
+    <circle cx="295" cy="215" r="7" fill="#ffffff"/>
+    <circle cx="306" cy="231" r="3.4" fill="#ffffff" opacity="0.9"/>
+  </g>
+
+  <!-- ---------- 腮红（浅橙金，非粉红）+ 微笑 ---------- -->
+  <ellipse cx="170" cy="330" rx="24" ry="14" fill="#fdba74" opacity="0.75"/>
+  <ellipse cx="342" cy="330" rx="24" ry="14" fill="#fdba74" opacity="0.75"/>
+  <path d="M226 330 Q241 348 256 336 Q271 348 286 330" stroke="#7c2d12" stroke-width="7" stroke-linecap="round" fill="none"/>
+  <path d="M243 337 L243 326 L251 334 Z" fill="#fffaf0"/>
+  <path d="M269 337 L269 326 L261 334 Z" fill="#fffaf0"/>
+
+  <!-- ---------- 帝王小皇冠 ---------- -->
+  <g>
+    <path d="M214 148 L214 112 L238 132 L256 100 L274 132 L298 112 L298 148 Z"
+          fill="url(#kngold)" stroke="#b45309" stroke-width="5" stroke-linejoin="round"/>
+    <circle cx="214" cy="106" r="7" fill="#fef9c3" stroke="#b45309" stroke-width="3"/>
+    <circle cx="298" cy="106" r="7" fill="#fef9c3" stroke="#b45309" stroke-width="3"/>
+    <circle cx="256" cy="94" r="8" fill="#fef9c3" stroke="#b45309" stroke-width="3"/>
+    <circle cx="256" cy="132" r="7" fill="#38bdf8"/>
+  </g>
+
+  <!-- ---------- 环境气泡与星芒 ---------- -->
+  <g fill="#ffffff">
+    <path d="M406 150 l5 12 12 5 -12 5 -5 12 -5 -12 -12 -5 12 -5 Z" opacity="0.9"/>
+    <path d="M104 176 l4 9.5 9.5 4 -9.5 4 -4 9.5 -4 -9.5 -9.5 -4 9.5 -4 Z" opacity="0.7" fill="#7dd3fc"/>
+    <circle cx="418" cy="332" r="8" opacity="0.45" fill="#7dd3fc"/>
+    <circle cx="96" cy="330" r="10" opacity="0.35" fill="#7dd3fc"/>
+    <circle cx="392" cy="404" r="6" opacity="0.4"/>
+    <circle cx="126" cy="424" r="5" opacity="0.35"/>
+  </g>
+</svg>
+      <div>
+        <h1 class="text-lg font-bold leading-tight">鲲鉴智策<span class="hidden sm:inline text-xs font-medium text-slate-400"> · 可解释时序预测与决策平台</span></h1>
+        <p class="text-[11px] text-slate-400 tracking-wide">中小企业臻品供应链 · 预测有据，全程可溯</p>
+      </div>
+    </div>
+    <nav class="flex gap-1 bg-slate-100 rounded-lg p-1">
+      <button onclick="switchTab('forecast')" id="tab-forecast" class="px-4 py-1.5 rounded-md text-sm font-medium">🔮 智能预测引擎</button>
+      <button onclick="switchTab('report')" id="tab-report" class="px-4 py-1.5 rounded-md text-sm font-medium">🧭 决策驾驶舱</button>
+      <button onclick="switchTab('records')" id="tab-records" class="px-4 py-1.5 rounded-md text-sm font-medium">📋 送货明细</button>
+      <button onclick="switchTab('reconcile')" id="tab-reconcile" class="px-4 py-1.5 rounded-md text-sm font-medium">💼 智能对账</button>
+      <button onclick="switchTab('customers')" id="tab-customers" class="px-4 py-1.5 rounded-md text-sm font-medium">🤝 客户管理中心</button>
+      <button onclick="switchTab('data')" id="tab-data" class="px-4 py-1.5 rounded-md text-sm font-medium">🗂️ 数据服务中心</button>
+      <button onclick="switchTab('users')" id="tab-users" class="px-4 py-1.5 rounded-md text-sm font-medium">👥 用户管理</button>
+    </nav>
+    <div class="flex items-center gap-2 pl-3 md:border-l">
+      <div class="w-8 h-8 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-sm font-bold" id="avatar">A</div>
+      <div class="leading-tight hidden sm:block">
+        <p class="text-sm font-medium" id="current-user">—</p>
+        <p class="text-[11px] text-slate-400" id="current-role">—</p>
+      </div>
+      <button onclick="doLogout()" class="text-slate-400 hover:text-red-500 text-sm px-2" title="退出登录">退出</button>
+    </div>
+  </div>
+</header>
+
+<main id="app-main" class="hidden max-w-7xl mx-auto px-4 py-6">
+
+<!-- ============ 送货明细 ============ -->
+<section id="page-records">
+  <!-- 统计卡片 -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+    <div class="stat-card stat-c1 bg-white rounded-xl p-4 shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="stat-badge" style="background:linear-gradient(135deg,#0f766e,#14b8a6)">📋</div>
+        <div><p class="text-xs text-slate-400 mb-0.5">总记录数</p>
+        <p id="stat-count" class="stat-val text-2xl font-bold text-slate-800">0</p></div>
+      </div>
+    </div>
+    <div class="stat-card stat-c2 bg-white rounded-xl p-4 shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="stat-badge" style="background:linear-gradient(135deg,#0d9488,#2dd4bf)">💰</div>
+        <div><p class="text-xs text-slate-400 mb-0.5">总金额（元）</p>
+        <p id="stat-amount" class="stat-val text-2xl font-bold text-teal-600">0.00</p></div>
+      </div>
+    </div>
+    <div class="stat-card stat-c3 bg-white rounded-xl p-4 shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="stat-badge" style="background:linear-gradient(135deg,#0284c7,#38bdf8)">🤝</div>
+        <div><p class="text-xs text-slate-400 mb-0.5">客户数</p>
+        <p id="stat-customers" class="stat-val text-2xl font-bold text-slate-800">0</p></div>
+      </div>
+    </div>
+    <div class="stat-card stat-c4 bg-white rounded-xl p-4 shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="stat-badge" style="background:linear-gradient(135deg,#059669,#34d399)">📈</div>
+        <div><p class="text-xs text-slate-400 mb-0.5">本月金额（元）</p>
+        <p id="stat-month" class="stat-val text-2xl font-bold text-emerald-600">0.00</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 工具栏 -->
+  <div class="bg-white rounded-xl p-4 shadow-sm mb-4 flex flex-wrap items-center gap-2 no-print">
+    <button onclick="openEditor()" class="bg-gradient-to-r from-teal-500 to-sky-600 hover:from-teal-400 hover:to-sky-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow">＋ 新增送货记录</button>
+    <button onclick="exportRecords()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium">导出 Excel</button>
+    <div class="flex-1"></div>
+    <select id="f-customer" onchange="renderRecords()" class="border rounded-lg px-3 py-2 text-sm max-w-[180px]"></select>
+    <input id="f-month" type="month" onchange="renderRecords()" class="border rounded-lg px-3 py-2 text-sm">
+    <input id="f-search" placeholder="搜索单号 / 品名..." oninput="renderRecords()" class="border rounded-lg px-3 py-2 text-sm w-44">
+    <button onclick="clearFilters('records')" class="text-slate-400 hover:text-slate-600 text-sm px-2">清空</button>
+  </div>
+
+  <!-- 明细表 -->
+  <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+    <table class="w-full text-sm min-w-[900px]">
+      <thead class="bg-slate-50 text-slate-500 text-xs">
+        <tr>
+          <th class="px-3 py-3 text-left">送货日期</th>
+          <th class="px-3 py-3 text-left">送货单号</th>
+          <th class="px-3 py-3 text-left">订单编号</th>
+          <th class="px-3 py-3 text-left">客户</th>
+          <th class="px-3 py-3 text-left">品名</th>
+          <th class="px-3 py-3 text-left">规格</th>
+          <th class="px-3 py-3 text-right">数量</th>
+          <th class="px-3 py-3 text-center">单位</th>
+          <th class="px-3 py-3 text-right">单价</th>
+          <th class="px-3 py-3 text-right">金额</th>
+          <th class="px-3 py-3 text-center no-print">操作</th>
+        </tr>
+      </thead>
+      <tbody id="records-body"></tbody>
+    </table>
+    <div id="records-empty" class="hidden py-16 text-center text-slate-400 text-sm">
+      暂无送货记录，点击「新增送货记录」开始录入
+    </div>
+  </div>
+</section>
+
+<!-- ============ 月度对账 ============ -->
+<section id="page-reconcile" class="hidden">
+  <div class="bg-white rounded-xl p-4 shadow-sm mb-4 flex flex-wrap items-center gap-2 no-print">
+    <select id="r-customer" onchange="renderReconcile()" class="border rounded-lg px-3 py-2 text-sm max-w-[220px]"></select>
+    <input id="r-month" type="month" onchange="renderReconcile()" class="border rounded-lg px-3 py-2 text-sm">
+    <label class="flex items-center gap-1.5 text-sm text-slate-600"><input id="r-unpaid" type="checkbox" onchange="renderReconcile()" class="rounded border-slate-300"> 仅看未结</label>
+    <div class="flex-1"></div>
+    <button onclick="exportReconcileYear()" class="bg-sky-600 hover:bg-sky-700 text-white px-4 py-2 rounded-lg text-sm font-medium">导出年度汇总</button>
+    <button onclick="exportReconcile()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium">导出对账单 Excel</button>
+    <button onclick="window.print()" class="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium">打印</button>
+  </div>
+  <div id="reconcile-content"></div>
+</section>
+
+<!-- ============ 客户管理中心 ============ -->
+<section id="page-customers" class="hidden">
+  <div class="bg-white rounded-xl p-4 shadow-sm mb-4 flex flex-wrap items-center gap-2 no-print">
+    <button onclick="openCustomerEditor()" class="bg-gradient-to-r from-teal-500 to-sky-600 hover:from-teal-400 hover:to-sky-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow">＋ 新增客户</button>
+    <input id="c-search" placeholder="搜索客户名称 / 联系人..." oninput="renderCustomers()" class="border rounded-lg px-3 py-2 text-sm w-56 ml-auto">
+  </div>
+  <!-- 智能分析面板：价值雷达 + 消费蜂窝（全部 Canvas 手绘，无第三方图表库） -->
+  <div class="grid md:grid-cols-2 gap-4 mb-4">
+    <div class="bg-white rounded-xl p-5 shadow-sm">
+      <h3 class="font-bold mb-1">🕸️ 客户价值雷达</h3>
+      <p class="text-xs text-slate-500 mb-3">TOP 5 客户六维画像：采购规模 / 购买频次 / 月均采购 / 复购黏性 / 品类广度 / 近期活跃度（按全部送货数据归一化实时计算）</p>
+      <canvas id="cu-radar" class="w-full"></canvas>
+    </div>
+    <div class="bg-white rounded-xl p-5 shadow-sm">
+      <h3 class="font-bold mb-1">🍯 客户消费蜂窝热力</h3>
+      <p class="text-xs text-slate-500 mb-3">TOP 6 客户 × 最近 6 个月采购金额强度（蜂窝六边形矩阵，色越暖金额占比越高，格内数字为相对强度）</p>
+      <canvas id="cu-hex" class="w-full"></canvas>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm overflow-x-auto">
+    <table class="w-full text-sm min-w-[700px]">
+      <thead class="bg-slate-50 text-slate-500 text-xs">
+        <tr>
+          <th class="px-4 py-3 text-left">排名 · 客户名称</th>
+          <th class="px-4 py-3 text-center">等级</th>
+          <th class="px-4 py-3 text-left">联系人</th>
+          <th class="px-4 py-3 text-left">电话</th>
+          <th class="px-4 py-3 text-right">累计送货笔数</th>
+          <th class="px-4 py-3 text-right">累计金额（元）</th>
+          <th class="px-4 py-3 text-right">月均采购</th>
+          <th class="px-4 py-3 text-left">最近下单</th>
+          <th class="px-4 py-3 text-left">偏好品名 TOP3</th>
+          <th class="px-4 py-3 text-center no-print">操作</th>
+        </tr>
+      </thead>
+      <tbody id="customers-body"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ 数据服务中心 ============ -->
+<section id="page-data" class="hidden">
+  <div class="grid md:grid-cols-2 gap-4">
+    <div class="bg-white rounded-xl p-5 shadow-sm md:col-span-2">
+      <h3 class="font-bold mb-3">📦 数据概览</h3>
+      <div id="data-overview" class="grid grid-cols-3 md:grid-cols-6 gap-3"></div>
+    </div>
+<div class="bg-white rounded-xl p-5 shadow-sm md:col-span-2">
+      <h3 class="font-bold mb-1">🧠 数据健康雷达 · 🍯 销售密度蜂窝</h3>
+      <p class="text-xs text-slate-500 mb-3">左：六维数据质量体检雷达（完整性 / 唯一性 / 数量·价格有效性 / 日期规范性 / 品类丰富度，与「数据体检」同源规则）；右：最近 8 周 × 星期几的销售金额密度蜂窝，识别旺淡节律。</p>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div><canvas id="dt-radar" class="w-full"></canvas></div>
+        <div><canvas id="dt-hex" class="w-full"></canvas></div>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl p-5 shadow-sm">
+      <h3 class="font-bold mb-2">🩺 数据体检</h3>
+      <p class="text-sm text-slate-500 mb-3">一键检查重复单号、数量/单价异常、缺失字段与日期格式问题，保障预测数据质量。</p>
+      <button onclick="checkData()" class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium">开始体检</button>
+      <div id="data-check-result" class="text-sm mt-3 max-h-44 overflow-y-auto"></div>
+    </div>
+    <div class="bg-white rounded-xl p-5 shadow-sm">
+      <h3 class="font-bold mb-2">账号与密码</h3>
+      <p class="text-sm text-slate-500 mb-4">修改当前登录账号 <b id="pwd-user" class="text-slate-700"></b> 的密码。</p>
+      <div class="space-y-2 max-w-xs">
+        <input id="pwd-old" type="password" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="当前密码">
+        <input id="pwd-new" type="password" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="新密码（至少6位）">
+        <input id="pwd-new2" type="password" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="确认新密码">
+        <button onclick="changePassword()" class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium">修改密码</button>
+      </div>
+    </div>
+    <div class="bg-white rounded-xl p-5 shadow-sm">
+      <h3 class="font-bold mb-2">导出备份</h3>
+      <p class="text-sm text-slate-500 mb-4">将全部数据（送货记录、客户）导出为 JSON 备份文件，可存档或迁移到其他电脑。</p>
+      <button onclick="exportBackup()" class="bg-gradient-to-r from-teal-500 to-sky-600 hover:from-teal-400 hover:to-sky-500 text-white px-4 py-2 rounded-lg text-sm font-medium">导出 JSON 备份</button>
+    </div>
+    <div class="bg-white rounded-xl p-5 shadow-sm">
+      <h3 class="font-bold mb-2">导入备份</h3>
+      <p class="text-sm text-slate-500 mb-4">从 JSON 备份文件恢复数据。⚠️ 将覆盖当前全部数据，请先导出备份。</p>
+      <input type="file" id="import-file" accept=".json" onchange="importBackup(this)" class="text-sm">
+    </div>
+    <div class="bg-white rounded-xl p-5 shadow-sm">
+      <h3 class="font-bold mb-2">导入 Excel 送货明细</h3>
+      <p class="text-sm text-slate-500 mb-2">支持列：送货日期 / 送货单号 / 订单编号 / 客户 / 品名 / 规格 / 数量 / 单位 / 单价</p>
+      <button onclick="downloadTpl()" class="text-teal-600 text-sm font-medium hover:underline mb-2 block">⬇ 下载导入模板</button>
+      <input type="file" id="excel-file" accept=".xlsx,.xls,.csv" onchange="importExcel(this)" class="text-sm">
+      <p id="excel-result" class="text-sm mt-2"></p>
+    </div>
+    <div id="danger-clear-card" class="bg-white rounded-xl p-5 shadow-sm border-2 border-red-100">
+      <h3 class="font-bold mb-2 text-red-600">清空全部数据</h3>
+      <p class="text-sm text-slate-500 mb-4">删除所有送货记录和客户，操作不可恢复，请先备份！</p>
+      <button id="btn-clear-all" onclick="clearAllData()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium">清空全部数据</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 用户管理（仅管理员可见） ============ -->
+<section id="page-users" class="hidden">
+  <div class="bg-white rounded-xl p-5 shadow-sm mb-4">
+    <h3 class="font-bold mb-1">👥 账号管理</h3>
+    <p class="text-sm text-slate-500 mb-4">仅管理员（老板）可在此维护账号；评审也可在登录页自助注册（注册后为普通用户）。</p>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+      <input id="nu-user" placeholder="登录账号" class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+      <input id="nu-name" placeholder="姓名（可选）" class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+      <input id="nu-pass" type="password" placeholder="初始口令（≥6 位）" class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+      <select id="nu-role" class="border border-slate-200 rounded-lg px-3 py-2 text-sm">
+        <option value="普通用户">普通用户</option>
+        <option value="老板">管理员（老板）</option>
+      </select>
+      <button onclick="adminAddUser()" class="bg-teal-600 hover:bg-teal-700 text-white rounded-lg px-4 py-2 text-sm font-medium">＋ 新增账号</button>
+    </div>
+  </div>
+  <div class="bg-white rounded-xl p-5 shadow-sm">
+    <div id="user-table" class="overflow-x-auto text-sm"></div>
+  </div>
+</section>
+
+<!-- ================= 智能预测 ================= -->
+<section id="page-forecast" class="hidden">
+  <div class="bg-white rounded-xl p-5 shadow-sm mb-4">
+    <h3 class="font-bold mb-1">🔮 智能销量预测</h3>
+    <p class="text-xs text-slate-500 mb-4">基于历史送货数据，内置 <b>LSTM 三子网集成</b>、<b>轻量 TCN</b>、<b>MixLinear</b>、<b>FreqLite</b> 与前沿的 <b>Transformer 编码器</b>、<b>PatchTST</b>、<b>PhaseFormer</b> 七种深度时序模型，面向 200~1200 条小样本自动回测评估并推荐最优模型。</p>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div>
+        <label class="text-xs text-slate-500">预测指标</label>
+        <select id="fc-metric" class="w-full border rounded-lg px-3 py-2 text-sm mt-1">
+          <option value="amount">每日销售金额（元）</option>
+          <option value="qty">每日销售数量</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs text-slate-500">客户范围</label>
+        <select id="fc-customer" class="w-full border rounded-lg px-3 py-2 text-sm mt-1"><option value="">全部客户</option></select>
+      </div>
+      <div>
+        <label class="text-xs text-slate-500">品名范围</label>
+        <select id="fc-product" class="w-full border rounded-lg px-3 py-2 text-sm mt-1"><option value="">全部品名</option></select>
+      </div>
+      <div>
+        <label class="text-xs text-slate-500">预测未来天数</label>
+        <select id="fc-horizon" class="w-full border rounded-lg px-3 py-2 text-sm mt-1">
+          <option value="7">未来 7 天</option>
+          <option value="14">未来 14 天</option>
+          <option value="30">未来 30 天</option>
+        </select>
+      </div>
+    </div>
+    <div class="flex items-center gap-3 mt-4 flex-wrap">
+      <button onclick="runForecast()" id="fc-run" class="px-6 py-2.5 rounded-lg text-white text-sm font-medium shadow bg-gradient-to-r from-teal-500 to-sky-600 hover:from-teal-400 hover:to-sky-500">开始预测</button>
+      <button onclick="exportForecast()" class="px-5 py-2.5 rounded-lg text-sm bg-slate-100 hover:bg-slate-200 hidden" id="fc-export-btn">导出预测 Excel</button>
+      <span id="fc-status" class="text-xs text-slate-500"></span>
+    </div>
+    <div id="fc-progress-wrap" class="hidden mt-3">
+      <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div id="fc-progress" class="h-full bg-gradient-to-r from-teal-400 to-sky-500" style="width:0%"></div>
+      </div>
+      <p class="text-xs text-slate-400 mt-1">LSTM 训练中 <span id="fc-progress-text"></span></p>
+    </div>
+  </div>
+
+  <!-- 模型对比 -->
+  <div id="fc-result" class="hidden">
+    <div class="bg-white rounded-xl p-5 shadow-sm mb-4">
+      <h3 class="font-bold mb-3">📊 模型回测对比<span class="text-xs font-normal text-slate-400 ml-2">（按时间顺序留出后 20% 数据做滚动回测，WAPE 越小越准，小样本含零值场景更稳健）</span></h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm min-w-[560px]">
+          <thead class="text-xs text-slate-500 bg-slate-50">
+            <tr>
+              <th class="px-3 py-2 text-left">模型</th><th class="px-3 py-2 text-left">类别</th>
+              <th class="px-3 py-2 text-right">MAE</th><th class="px-3 py-2 text-right">RMSE</th>
+              <th class="px-3 py-2 text-right">WAPE(%)</th><th class="px-3 py-2 text-right">DM p</th><th class="px-3 py-2 text-center">推荐</th>
+            </tr>
+          </thead>
+          <tbody id="fc-model-table"></tbody>
+        </table>
+      </div>
+      <p class="text-xs text-slate-400 mt-2" style="line-height:1.6">DM p：Diebold–Mariano 检验（L1 损失差分，Newey–West 滞后 1 阶方差，正态近似）相对推荐模型的 p 值，<b class="text-teal-600">* 表示 p&lt;0.05 差异显著</b>；p 越大说明两者精度差异越不显著。</p>
+    </div>
+
+    <div class="bg-white rounded-xl p-5 shadow-sm mb-4">
+      <h3 class="font-bold mb-1">📉 模型效能可视化<span class="text-xs font-normal text-slate-400 ml-2">（左：回测 WAPE 精度对比　右：LSTM 训练收敛过程）</span></h3>
+      <p class="text-xs text-slate-500 mb-3">WAPE 越低越准；损失曲线持续下降且收敛平稳，说明网络训练充分、未出现过拟合。</p>
+      <div class="grid md:grid-cols-2 gap-5">
+        <div><canvas id="mdl-mape" class="w-full"></canvas></div>
+        <div><canvas id="mdl-loss" class="w-full"></canvas></div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl p-5 shadow-sm mb-4">
+      <h3 class="font-bold mb-1">🧬 前沿模型机制透视<span class="text-xs font-normal text-slate-400 ml-2">（打开模型黑箱：注意力落在哪、门控怎么分工、频域滤波改了什么）</span></h3>
+      <p class="text-xs text-slate-500 mb-3">PhaseFormer <b>频带注意力极坐标轮</b>（半径=频带幅值，色相=相位，底部为频带间注意力热力）｜ MixLinear <b>专家门控环形图</b>（softmax 实时权重）｜ FreqLite <b>幅频滤波前后对比</b>——均由模型前向传播实时计算，非示意图。</p>
+      <div class="grid md:grid-cols-3 gap-5">
+        <div><h4 class="text-sm font-bold text-slate-700 mb-2">① PhaseFormer 频带注意力</h4><canvas id="mech-pf" class="w-full"></canvas></div>
+        <div><h4 class="text-sm font-bold text-slate-700 mb-2">② MixLinear 专家门控</h4><canvas id="mech-ml" class="w-full"></canvas></div>
+        <div><h4 class="text-sm font-bold text-slate-700 mb-2">③ FreqLite 频域滤波</h4><canvas id="mech-fl" class="w-full"></canvas></div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-xl p-5 shadow-sm mb-4">
+      <h3 class="font-bold mb-1">📈 历史与预测完整曲线</h3>
+      <p class="text-xs text-slate-500 mb-3">① 回测验证：黑线为<b>真实销量</b>，彩色曲线为各模型在留出段（后 20%）的<b>回测预测</b>，谁更贴合黑线一目了然；② 完整预测走势：右侧放大展示未来每一天的预测曲线。点击图例可显示/隐藏对应模型。</p>
+      <div id="fc-chart" class="w-full overflow-x-auto"></div>
+    </div>
+
+    <div class="bg-white rounded-xl p-5 shadow-sm">
+      <h3 class="font-bold mb-3">🗓 未来预测明细<span class="text-xs font-normal text-slate-400 ml-2" id="fc-best-note"></span></h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm min-w-[560px]">
+          <thead class="text-xs text-slate-500 bg-slate-50" id="fc-future-head"></thead>
+          <tbody id="fc-future-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- 预测解释与归因（TimeSliver / 精确 SHAP 对照） -->
+    <div class="bg-white rounded-xl p-5 shadow-sm mt-4">
+      <div class="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h3 class="font-bold mb-1">🧠 预测解释与归因分析</h3>
+          <p class="text-xs text-slate-500 mb-3">采用 <b>TimeSliver 时间切片归因</b>（机制源自 Pandey et al., ICLR 2026, arXiv:2601.21289）：把最近 7 天窗口按原始时间位置切成 <b>远 / 中 / 近 3 个时间片段</b>，片段级贡献用精确 Shapley 闭式枚举（2³=8 联盟，严格满足效率性 / 对称性 / 虚拟玩家公理），片段内按敏感度闭式细分配到每一天；同时并行计算 <b>逐日精确 SHAP</b>（2⁷=128 联盟）作为对照基准。</p>
+        </div>
+        <span class="text-[11px] px-2.5 py-1 rounded-full bg-gradient-to-r from-teal-500 to-sky-500 text-white shadow-sm whitespace-nowrap">TimeSliver · 2³联盟 · ICLR 2026 机制</span>
+      </div>
+      <div id="xai-summary"></div>
+      <div id="xai-agree" class="grid grid-cols-2 md:grid-cols-4 gap-2.5 mt-3"></div>
+      <div class="mt-5">
+        <h4 class="text-sm font-bold text-slate-700 mb-2">① TimeSliver 时间片段贡献分解<span class="text-xs font-normal text-slate-400 ml-2">（红=推高预测，绿=拉低预测）</span></h4>
+        <canvas id="xai-shap" class="w-full"></canvas>
+      </div>
+      <div class="mt-5">
+        <h4 class="text-sm font-bold text-slate-700 mb-2">② 归因热力图<span class="text-xs font-normal text-slate-400 ml-2">（行=最近 7 个预测起点，列=窗口内历史日；红=正向推高，绿=负向拉低）</span></h4>
+        <canvas id="xai-heat" class="w-full"></canvas>
+      </div>
+      <div class="mt-5">
+        <h4 class="text-sm font-bold text-slate-700 mb-2">③ 贡献强度立体柱<span class="text-xs font-normal text-slate-400 ml-2">（零线以上=推高，以下=拉低）</span></h4>
+        <canvas id="xai-3d" class="w-full"></canvas>
+      </div>
+      <div class="grid md:grid-cols-2 gap-5 mt-5">
+        <div>
+          <h4 class="text-sm font-bold text-slate-700 mb-2">④ 时间敏感度<span class="text-xs font-normal text-slate-400 ml-2">（模型对各历史日的依赖强度）</span></h4>
+          <canvas id="xai-saliency" class="w-full"></canvas>
+        </div>
+        <div>
+          <h4 class="text-sm font-bold text-slate-700 mb-2">⑤ 星期周期效应<span class="text-xs font-normal text-slate-400 ml-2">（日均销量按星期分布）</span></h4>
+          <canvas id="xai-dow" class="w-full"></canvas>
+        </div>
+      </div>
+      <div class="mt-5">
+        <h4 class="text-sm font-bold text-slate-700 mb-2">⑥ 回测置信区间<span class="text-xs font-normal text-slate-400 ml-2" id="xai-bt-note"></span></h4>
+        <canvas id="xai-backtest" class="w-full"></canvas>
+      </div>
+      <div class="flex gap-3 mt-5 flex-wrap">
+        <button onclick="exportXAI()" class="px-5 py-2.5 rounded-lg text-sm text-white shadow bg-gradient-to-r from-teal-500 to-sky-600 hover:from-teal-400 hover:to-sky-500">导出解读报告 Excel</button>
+        <button onclick="saveXAIPng()" class="px-5 py-2.5 rounded-lg text-sm bg-slate-100 hover:bg-slate-200">保存归因长图 PNG</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ================= 智能决策 ================= -->
+<section id="page-report" class="hidden">
+  <div class="bg-white rounded-xl p-5 shadow-sm mb-4 flex items-center gap-3 flex-wrap no-print">
+    <div>
+      <h3 class="font-bold">🧭 智能决策</h3>
+      <p class="text-xs text-slate-500 mt-0.5">基于全部送货数据自动生成：销售趋势、畅销品分析、客户贡献与智能备货建议。</p>
+    </div>
+    <div class="flex-1"></div>
+    <button onclick="genReport()" class="px-6 py-2.5 rounded-lg text-white text-sm font-medium shadow bg-gradient-to-r from-teal-500 to-sky-600 hover:from-teal-400 hover:to-sky-500">生成报告</button>
+    <button onclick="exportReport()" class="px-5 py-2.5 rounded-lg text-sm bg-slate-100 hover:bg-slate-200 hidden" id="rp-export-btn">导出报告 Excel</button>
+  </div>
+  <div id="report-content"></div>
+</section>
+
+<footer class="no-print text-center text-xs text-slate-400 mt-8 pb-2">
+  <span class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/80 border border-teal-100 shadow-sm">
+    <span>🦀 鲲鉴智策 · 可解释时序预测与决策平台</span><span class="text-teal-300">v3.9</span>
+    <span class="text-slate-300">|</span><span class="text-teal-500">TimeSliver · LSTM · XAI</span>
+  </span>
+</footer>
+
+</main>
+
+<!-- ============ 新增/编辑送货记录 弹窗 ============ -->
+<div id="editor-modal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto p-4 no-print">
+  <div class="bg-white rounded-2xl w-full max-w-4xl my-6 fade-in">
+    <div class="px-6 py-4 border-b flex items-center justify-between">
+      <h3 id="editor-title" class="font-bold text-lg">新增送货记录</h3>
+      <button onclick="closeEditor()" class="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
+    </div>
+    <div class="px-6 py-4">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div>
+          <label class="text-xs text-slate-500">客户名称 *</label>
+          <input id="e-customer" list="customer-list" class="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="输入或选择客户">
+          <datalist id="customer-list"></datalist>
+        </div>
+        <div>
+          <label class="text-xs text-slate-500">送货日期 *</label>
+          <input id="e-date" type="date" class="w-full border rounded-lg px-3 py-2 text-sm mt-1">
+        </div>
+        <div>
+          <label class="text-xs text-slate-500">送货单号</label>
+          <input id="e-delivery-no" class="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="如 181650">
+        </div>
+        <div>
+          <label class="text-xs text-slate-500">订单编号</label>
+          <input id="e-order-no" class="w-full border rounded-lg px-3 py-2 text-sm mt-1" placeholder="如 20250825003">
+        </div>
+      </div>
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-sm font-bold text-slate-600">产品明细</p>
+        <button onclick="addDetailRow()" class="text-teal-600 text-sm hover:underline">＋ 添加一行</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm min-w-[640px]">
+          <thead class="text-xs text-slate-500 bg-slate-50">
+            <tr>
+              <th class="px-2 py-2 text-left">品名</th>
+              <th class="px-2 py-2 text-left">规格</th>
+              <th class="px-2 py-2 text-right w-20">数量</th>
+              <th class="px-2 py-2 text-center w-16">单位</th>
+              <th class="px-2 py-2 text-right w-24">单价</th>
+              <th class="px-2 py-2 text-right w-24">金额</th>
+              <th class="w-8"></th>
+            </tr>
+          </thead>
+          <tbody id="detail-body"></tbody>
+        </table>
+      </div>
+      <div class="text-right mt-3 text-sm">
+        合计金额：<span id="editor-total" class="text-xl font-bold text-teal-600">0.00</span> 元
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t flex justify-end gap-2">
+      <button onclick="closeEditor()" class="px-4 py-2 rounded-lg text-sm bg-slate-100 hover:bg-slate-200">取消</button>
+      <button onclick="saveRecord()" class="px-5 py-2 rounded-lg text-sm bg-gradient-to-r from-teal-500 to-sky-600 hover:from-teal-400 hover:to-sky-500 text-white font-medium">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 客户编辑 弹窗 ============ -->
+<div id="customer-modal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 no-print">
+  <div class="bg-white rounded-2xl w-full max-w-md fade-in">
+    <div class="px-6 py-4 border-b flex items-center justify-between">
+      <h3 id="customer-modal-title" class="font-bold text-lg">新增客户</h3>
+      <button onclick="closeCustomerEditor()" class="text-slate-400 hover:text-slate-600 text-xl leading-none">✕</button>
+    </div>
+    <div class="px-6 py-4 space-y-3">
+      <div>
+        <label class="text-xs text-slate-500">客户名称 *</label>
+        <input id="cu-name" class="w-full border rounded-lg px-3 py-2 text-sm mt-1">
+      </div>
+      <div>
+        <label class="text-xs text-slate-500">联系人</label>
+        <input id="cu-contact" class="w-full border rounded-lg px-3 py-2 text-sm mt-1">
+      </div>
+      <div>
+        <label class="text-xs text-slate-500">电话</label>
+        <input id="cu-phone" class="w-full border rounded-lg px-3 py-2 text-sm mt-1">
+      </div>
+      <div>
+        <label class="text-xs text-slate-500">备注</label>
+        <input id="cu-note" class="w-full border rounded-lg px-3 py-2 text-sm mt-1">
+      </div>
+      <div>
+        <label class="text-xs text-slate-500">客户等级</label>
+        <select id="cu-level" class="w-full border rounded-lg px-3 py-2 text-sm mt-1">
+          <option>普通</option><option>重要</option><option>VIP</option>
+        </select>
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t flex justify-end gap-2">
+      <button onclick="closeCustomerEditor()" class="px-4 py-2 rounded-lg text-sm bg-slate-100 hover:bg-slate-200">取消</button>
+      <button onclick="saveCustomer()" class="px-5 py-2 rounded-lg text-sm bg-gradient-to-r from-teal-500 to-sky-600 hover:from-teal-400 hover:to-sky-500 text-white font-medium">保存</button>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- ============ 对话式数据分析助手 ============ -->
+<button id="nl-fab" onclick="nlToggle()" title="秦思智能体 · 点我对话查数据" style="display:none">
+  <svg viewBox="0 0 72 50" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <linearGradient id="nlFishG" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#2dd4bf"/><stop offset="1" stop-color="#0ea5e9"/>
+      </linearGradient>
+    </defs>
+    <circle class="nl-bub" cx="16" cy="9" r="2.2" fill="#7dd3fc" opacity=".6"/>
+    <circle class="nl-bub" cx="22" cy="5" r="1.4" fill="#7dd3fc" opacity=".45" style="animation-delay:.7s"/>
+    <path class="nl-tail" d="M52 25 L68 13 Q63.5 25 68 37 Z" fill="#f59e0b"/>
+    <path d="M28 11 Q36 2 44 11 Q38 8.5 32 13.5 Z" fill="#0d9488"/>
+    <ellipse cx="34" cy="25" rx="22" ry="15" fill="url(#nlFishG)"/>
+    <path d="M15 29 Q34 41 53 28 Q41 36 25 33.5 Z" fill="#ffffff" opacity=".28"/>
+    <path d="M34 29 Q38.5 34.5 45 32 Q39.5 30.5 37.5 27 Z" fill="#f59e0b" opacity=".9"/>
+    <circle cx="27" cy="27.5" r="2.4" fill="#fb923c" opacity=".45"/>
+    <circle cx="22" cy="21.5" r="5.4" fill="#fff"/>
+    <circle cx="20.4" cy="21.8" r="2.9" fill="#1e293b"/>
+    <circle cx="19.4" cy="20.7" r="1" fill="#fff"/>
+    <path d="M16.5 29 Q21 32.6 26 30" stroke="#0f766e" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  </svg>
+  <span class="nl-dot"></span>
+</button>
+<div id="nl-panel" class="hidden" role="dialog" aria-label="对话式数据分析助手">
+  <div class="nl-head">
+    <div class="nl-ava">🐟</div>
+    <div><b>秦思智能体 · 对话式数据分析</b><p>一句话查数据 · 出图表 · 🎤 语音提问 · 🧠 Agent 工具调用 · ⚙ 可接入大模型</p></div>
+    <button onclick="KJ_AI.panel()" title="AI 能力与安全审计">🧠</button>
+    <button onclick="nlLlmUI()" title="接入大模型 API（AI 增强）">⚙</button>
+    <button onclick="nlToggle()" title="收起到右下角小鱼">收起</button>
+  </div>
+  <div id="nl-body"></div>
+  <div id="nl-llm" class="hidden">
+    <div class="nl-llm-row"><label>API 地址</label><input id="nl-llm-base" placeholder="https://api.deepseek.com/v1 等OpenAI兼容地址"></div>
+    <div class="nl-llm-row"><label>API Key</label><input id="nl-llm-key" type="password" placeholder="sk-…（仅存本机 localStorage）"></div>
+    <div class="nl-llm-row"><label>模型</label><input id="nl-llm-model" placeholder="deepseek-chat / gpt-4o-mini / glm-4-plus…"></div>
+    <div class="nl-llm-row"><label>转写模型</label><input id="nl-llm-asr" placeholder="whisper-1（语音转写，可留空用默认）"></div>
+    <div class="nl-llm-row"><label>视觉模型</label><input id="nl-llm-vision" placeholder="gpt-4o-mini / qwen-vl-plus（图片识别，可留空用主模型）"></div>
+    <label class="nl-llm-sw"><input type="checkbox" id="nl-llm-on"> AI 增强模式：本地意图未命中时，由 Agent 自主规划并调用工具作答</label>
+    <div class="nl-llm-btns"><button onclick="nlLlmSave(true)">保存</button><button class="nl-ghost" onclick="nlLlmTest()">测试连接</button></div>
+    <p id="nl-llm-msg"></p>
+  </div>
+  <div id="nl-chips"></div>
+  <div class="nl-input-row">
+    <button id="nl-mic" onclick="nlVoiceToggle()" title="语音输入">🎤</button>
+    <button id="nl-img" onclick="KJ_AI.pickImage()" title="上传单据/商品图片，识别为结构化数据">📎</button>
+    <input id="nl-input" placeholder="例如：东星斑 9 月卖了多少？" autocomplete="off"
+      onkeydown="if(event.key==='Enter')nlSendBtn()">
+    <button id="nl-send" onclick="nlSendBtn()">发送</button>
+  </div>
+</div>
+
+<!-- 业务脚本：按依赖顺序加载；nlq 为对话式数据分析助手，须在 main 之前 -->
+<script src="js/auth.js"></script>
+<script src="js/store.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/records.js"></script>
+<script src="js/reconcile.js"></script>
+<script src="js/customers.js"></script>
+<script src="js/excel.js"></script>
+<script src="js/insights.js"></script>
+<script src="js/models.js"></script>
+<script src="js/forecast.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/forecast-charts.js"></script>
+<script src="js/xai.js"></script>
+<script src="js/canvas.js"></script>
+<script src="js/xai-charts.js"></script>
+<script src="js/report.js"></script>
+<script src="js/sealife.js"></script>
+<script src="js/nlq.js"></script>
+<!-- AI 能力层：大模型客户端 → 安全护栏 → RAG 检索 → 工具注册表 → Agent 工作流 → 界面 -->
+<script src="js/ai/llm.js"></script>
+<script src="js/ai/guard.js"></script>
+<script src="js/ai/rag.js"></script>
+<script src="js/ai/tools.js"></script>
+<script src="js/ai/agent.js"></script>
+<script src="js/ai/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
