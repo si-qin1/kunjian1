@@ -299,4 +299,4 @@ A：全部存在浏览器 localStorage，页面不发起任何网络请求。
 
 ## 九、许可说明
 
-本项目为参赛作品，代码供学习与评审使用。第三方依赖遵循其原始许可：Tailwind CSS（MIT）、xlsx-js-style（Apache-2.0）。
+本项目为参赛作品，代码仅共评审使用。第三方依赖遵循其原始许可：Tailwind CSS（MIT）、xlsx-js-style（Apache-2.0）。
