@@ -1,0 +1,183 @@
+================================================================================
+鲲鉴智策 · 环境配置说明
+================================================================================
+
+一、运行环境要求
+--------------------------------------------------------------------------------
+1. 浏览器（二选一即可，无需安装任何运行时）
+   · Chrome / Edge 90 及以上（推荐）
+   · Safari 15 及以上 / Android WebView（Android 7.0 及以上）
+2. 操作系统：Windows / macOS / Linux / Android 均可
+3. 网络：不需要。所有依赖（Tailwind 运行时、Excel 库）已本地化到 vendor/ 目录
+4. 不需要：Node.js、Python、数据库、Web 服务器。直接双击 index.html 即可运行。
+5. 可选：Node.js 18 及以上 —— 仅在需要"由 .env 生成 js/env.js"时使用（见第四节）。
+   不安装 Node.js 也不影响系统运行，页面会回落到本地调试兜底配置。
+
+二、依赖清单
+--------------------------------------------------------------------------------
+本项目无包管理器依赖，第三方库以静态文件形式内置，离线可用：
+
+  路径                          名称与版本                    用途              许可
+  ----------------------------  ----------------------------  ----------------  ----------
+  vendor/tailwindcss.js         Tailwind CSS（Play 运行时）    原子类样式        MIT
+  vendor/xlsx.bundle.js         xlsx-js-style 1.2.0           Excel 读写与样式  Apache-2.0
+
+  业务代码（含七个时序预测模型）全部为原生 JavaScript（ES2017），
+  不依赖 TensorFlow.js 等深度学习运行时，也不依赖任何前端框架或构建工具。
+  构建脚本 scripts/build-env.mjs 仅使用 Node.js 标准库，无第三方依赖。
+
+三、目录结构
+--------------------------------------------------------------------------------
+  index.html          页面骨架
+  css/style.css       全局样式
+  js/                 业务代码（19 个模块，按职责拆分，加载顺序见 README；
+                      nlq.js 为对话式数据分析助手「秦思智能体」；
+                      env.js 为环境配置产物，公开仓库中仅保留空值模板）
+  vendor/             第三方静态依赖（Tailwind 运行时、xlsx-js-style）
+  scripts/
+    build-env.mjs     环境配置构建脚本：读取 .env，生成 js/env.js
+  .env.example        环境变量模板（只含占位符，可安全提交）
+  .gitignore          已排除 .env、env.local.js 等本地敏感文件
+  env.example.js      页面侧 window.KJ_ENV 对象的形状说明（不承载真实值）
+  环境配置.txt        本文件
+
+四、环境配置（敏感信息不入库）
+--------------------------------------------------------------------------------
+本项目是纯前端工程，没有后端与系统级运行环境，因此"环境变量"以如下链路落地：
+
+    .env（不入库）  →  node scripts/build-env.mjs  →  js/env.js（空值模板入库）
+                    →  页面读取 window.KJ_ENV
+
+真实值始终只存在于本机 .env、env.local.js 或部署平台的环境变量面板，
+仓库里只有"空值模板"，符合"敏感信息不得出现在公开仓库"的要求。
+
+1) 变量清单（白名单固定为以下七项，其余变量一律忽略、不会被写入产物）
+
+   RESET_KEY         账号「找回密码」校验密钥             部署前必须改为自定义值
+   DEMO_ADMIN_PASS   演示管理员 admin 的初始口令          部署前必须改为自定义值
+   LLM_API_KEY       大模型 API Key（Agent/视觉/语音转写） 敏感；留空则降级为本地规则引擎
+   LLM_BASE_URL      大模型 API 基址（写到 /v1 为止）      非敏感；留空默认 DeepSeek 地址
+   LLM_MODEL         对话模型（Agent 主模型）              非敏感
+   LLM_ASR_MODEL     语音转写模型                         留空用 whisper-1
+   LLM_VISION_MODEL  视觉模型（图片识别）                  留空沿用对话模型
+
+2) 配置步骤（推荐方式，与 CI / 部署平台完全一致）
+
+   第 1 步  复制模板：   Windows：copy .env.example .env
+                        macOS/Linux：cp .env.example .env
+   第 2 步  编辑 .env，填入实际值（.env 已在 .gitignore 中排除，不会入库）
+   第 3 步  生成配置：   node scripts/build-env.mjs
+            脚本把 .env 中的白名单变量写成 js/env.js 的 window.KJ_ENV 对象，
+            控制台只输出掩码（前 2 位 + 长度），不会把真实值打到日志里
+   第 4 步  打开 index.html 验证（登录页应能用新口令登录）
+
+   · 也可以不建 .env，改为在 CI / 部署平台的「环境变量」面板配置同名变量，
+     构建时执行同一条命令即可（脚本优先读取进程环境变量）。
+   · 若需在本机临时覆盖：复制 env.example.js 为 env.local.js 并填值，再在
+     index.html 中 js/env.js 之后手工加一行
+       <script src="env.local.js"></script>
+     env.local.js 已在 .gitignore 中排除；未创建该文件时不要加这一行，否则会产生 404。
+
+
+
+3) 变量模板（.env.example 原文，可直接复制）
+
+   # 复制为 .env 后填写；.env 已被 .gitignore 排除
+   RESET_KEY=
+   DEMO_ADMIN_PASS=
+   LLM_API_KEY=
+   LLM_BASE_URL=https://api.deepseek.com/v1
+   LLM_MODEL=deepseek-chat
+   LLM_ASR_MODEL=
+   LLM_VISION_MODEL=
+
+4) AI 能力（可选）说明
+
+   · 不填 LLM_API_KEY 时，页面自动使用本地规则引擎，零网络请求、双击即可演示；
+   · 填写后启用「秦思智能体」的 Agent 模式：大模型负责规划与作答，
+     页面内置 7 个只读工具（数据汇总/排行/趋势/客户档案/对账/知识检索）提供真实数据，
+     回答中的数字须与工具结果一致，否则标注"未通过核对"；
+   · 支持任意 OpenAI 兼容服务：DeepSeek / 通义 / 智谱 / Kimi / 硅基流动 / OpenAI；
+   · 无真实密钥也想演示链路：node scripts/mock-llm.mjs 启动本地 mock，
+     在 ⚙ 中填 http://127.0.0.1:8787/v1 + mock-key + mock-model 即可
+     （mock 只做决策模拟，所有数字来自页面真实工具结果）；
+   · 密钥也可以只填在页面 ⚙ 面板（存本机 localStorage），不写入任何文件。
+
+5) 页面侧读取方式（js/auth.js）
+
+   const KJ_ENV          = (typeof window !== 'undefined' && window.KJ_ENV) || {};
+   const RESET_KEY       = KJ_ENV.RESET_KEY       || '888888';    // 兜底值仅供本地演示
+   const DEMO_ADMIN_PASS = KJ_ENV.DEMO_ADMIN_PASS || 'admin123';  // 兜底值仅供本地演示
+
+   未注入任何配置时（例如直接双击 index.html 打开），系统回落到兜底值，
+   仍可正常演示；生产部署前必须按第 2 步覆盖。
+
+五、本地运行
+--------------------------------------------------------------------------------
+方式一（最简单搜索）：https://si-qin1.github.io/kunjian1/，用 Chrome / Edge 打开。
+
+方式二（推荐，等价于线上环境）：
+   cd 项目根目录
+   python3 -m http.server 8080
+   # 浏览器访问 http://localhost:8080
+
+   Node 环境也可以用：
+   npx serve .
+
+六、GitHub Pages 部署
+--------------------------------------------------------------------------------
+1. 将本目录全部文件推送到仓库 main 分支（保留 .nojekyll 文件）
+2. 仓库 Settings → Pages → Source 选择 Deploy from a branch
+3. 分支选 main，目录选 / (root)，保存
+
+
+注意事项：
+  · 页面使用相对路径引用资源，放在仓库根目录或任意子目录都能正常加载
+  · 推送前务必确认 .env 未入库、js/env.js 为空值模板（见第四节第 3 条）
+  · GitHub Pages 为 HTTPS，localStorage 可正常使用
+  · 首次访问后浏览器会缓存静态资源，更新代码后建议强制刷新（Ctrl/Cmd + Shift + R）
+
+七、Android 打包（可选）
+--------------------------------------------------------------------------------
+如需打包成 APK，需要以下环境（本仓库只包含 Web 工程，不含 Android 壳工程）：
+  · JDK 17
+  · Android SDK Platform 34 + Build-Tools 34.0.0
+  · Gradle 8.7（AGP 8.5.2 与 Gradle 9.x 不兼容，注意版本匹配）
+  · 签名文件 keystore（自行生成，不要提交到仓库）
+
+  Android 壳工程的做法：新建 WebView 项目，把本目录全部文件放入
+  app/src/main/assets/，加载 file:///android_asset/index.html 即可。
+
+八、数据与存储说明
+--------------------------------------------------------------------------------
+  · 业务数据保存在浏览器 localStorage，键名 kunyan_v3
+  · 账号表保存在 localStorage，键名 kunyan_users_v1；会话键 kunyan_session_v1
+  · 清除浏览器数据会导致业务数据丢失，重要数据请用「导出 JSON 备份」留档
+  · 换浏览器 / 换设备不会自动同步数据，需通过备份文件迁移
+
+九、常见问题
+--------------------------------------------------------------------------------
+Q1 打开后页面没有样式（只有纯文字）
+   检查 css/style.css 与 vendor/tailwindcss.js 是否在同一目录层级被正确引用；
+   若从压缩包解压后只拷贝了 index.html，请把整个目录一起拷贝。
+
+Q2 导出的 Excel 打不开或提示损坏
+   确认 vendor/xlsx.bundle.js 存在且未被杀毒软件拦截；导出后请用 Excel 2016+
+   或 WPS 打开。
+
+Q3 预测按钮点了没反应
+   打开浏览器控制台查看是否有报错；常见原因是本地文件被浏览器安全策略限制，
+   改用第五节的本地服务器方式打开即可。
+
+Q4 忘记密码 / 重置密钥是多少
+   登录页「忘记密码」需输入的密钥即 RESET_KEY：
+   · 仓库默认值 888888（仅用于本地演示，写在 js/auth.js 的兜底配置里）；
+   · 若已按第四节配置，则为 .env 中填写、并已生成进 js/env.js 的值；
+   · 若忘记了自定义值，重新执行 node scripts/build-env.mjs 后查看掩码长度即可确认是否生效，
+     或直接把 .env 中的 RESET_KEY 改回已知值后重新生成。
+
+Q5 执行 node scripts/build-env.mjs 报 "找不到 .env"
+   属正常提示：未建 .env 时会生成空值模板，系统回落到兜底配置照常运行。
+   要配置真实值，请先按第四节第 1 步复制 .env.example 为 .env。
+
+================================================================================
