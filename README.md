@@ -130,9 +130,9 @@
 │   └── mock-llm.mjs        本地 mock 大模型（OpenAI 兼容，仅用于离线自测/演示 Agent 链路）
 ├── README.md
 ├── 环境配置.txt
-├── .env.example            环境变量模板（只含占位符，可安全提交）
-├── env.example.js          window.KJ_ENV 对象形状说明（不承载真实值）
-├── .gitignore              已排除 .env / env.local.js 等本地敏感文件
+├── .env.example            环境变量模板（只含占位符）
+├── env.example.js          window.KJ_ENV 对象形状说明（不含真实值）
+├── .gitignore              排除等本地敏感文件
 └── .nojekyll
 ```
 
