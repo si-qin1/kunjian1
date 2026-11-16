@@ -28,7 +28,6 @@
   css/style.css       全局样式
   js/                 业务代码（19 个模块，按职责拆分，加载顺序见 README；
                       nlq.js 为对话式数据分析助手「秦思智能体」；
-                      env.js 为环境配置产物，公开仓库中仅保留空值模板）
   vendor/             第三方静态依赖（Tailwind 运行时、xlsx-js-style）
   scripts/
   环境配置.txt        本文件
